@@ -3,7 +3,6 @@ module BuiltinFunctions (
 ) where
 
 import Data.List (
-  singleton,
   subsequences,
   unfoldr,
   genericTake,
@@ -230,7 +229,7 @@ builtins = Map.fromList [
   ("Square", numberMathMonad (\x -> x * x)),
   ("Stringify", monadic (stringToVal . valToString)),
   ("TruthyIndices", monadic (\l -> List [Number i | (i, x) <- zip [0..] $ listOrSingleton l, valToBool x])),
-  ("Wrap", monadic (List . singleton)),
+  ("Wrap", monadic (\x -> List [x])),
   ("Zero?", numberMathMonad $ boolToInteger . (== 0)),
   --- Arity 2 ---
   ("At", numAndListDyad $ flip genericIndex),
