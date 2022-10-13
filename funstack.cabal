@@ -1,0 +1,71 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.35.0.
+--
+-- see: https://github.com/sol/hpack
+
+name:           funstack
+version:        0.0.0
+description:    Please see the README on GitHub at <https://github.com/dloscutoff/funstack#readme>
+homepage:       https://github.com/dloscutoff/funstack#readme
+bug-reports:    https://github.com/dloscutoff/funstack/issues
+author:         David Loscutoff
+maintainer:     David Loscutoff
+copyright:      2022 David Loscutoff
+license:        MIT
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/dloscutoff/funstack
+
+library
+  exposed-modules:
+      BuiltinFunctions
+      BuiltinModifiers
+      Command
+      Function
+      Modifier
+      Parse
+      State
+      Value
+  other-modules:
+      Paths_funstack
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  build-depends:
+      base >=4.7 && <5
+    , containers
+  default-language: Haskell2010
+
+executable funstack-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_funstack
+  hs-source-dirs:
+      app
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , funstack
+  default-language: Haskell2010
+
+test-suite funstack-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_funstack
+  hs-source-dirs:
+      test
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , funstack
+  default-language: Haskell2010
