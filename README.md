@@ -46,4 +46,9 @@ The easiest way to compile and run the interpreter is using the [Haskell Tool St
     Pair Inc over
     [43,6]
 
-It should also be possible to compile the interpreter using [ghc](https://www.haskell.org/ghc/) directly. You will need to specify the paths to Main.hs and the other modules using the command-line option `-i./app:./lib`. (This method is currently untested.)
+It is also possible to compile the interpreter using [ghc](https://www.haskell.org/ghc/) directly. You will need to specify the path to the non-main modules using the command-line option `-i`. Here is one possible invocation that creates a `funstack` executable (`funstack.exe` on Windows):
+
+    ~/funstack$ ghc -i./src -o funstack app/Main.hs
+    ~/funstack$ ./funstack 42 5
+    Pair Inc over
+    [43,6]
