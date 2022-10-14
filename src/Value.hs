@@ -15,7 +15,9 @@ module Value (
   boolToVal,
   orderingToVal,
   listOrSingleton,
-  sameTypeFalsey
+  sameTypeFalsey,
+  depth,
+  rectangularDepth
 ) where
 
 -- Value is the main data type for values in FunStack:
@@ -159,3 +161,25 @@ sameTypeFalsey :: Value -> Value
 sameTypeFalsey (Number _) = Number 0
 sameTypeFalsey (Character _) = Character '\0'
 sameTypeFalsey (List _) = List []
+
+-- Takes a Value and returns its depth:
+--  Depth of a scalar is 0
+--  Depth of an empty List is 0
+--  Depth of a nonempty List is 1 plus the depth of its deepest element
+depth :: Value -> Integer
+depth (Number _) = 0
+depth (Character _) = 0
+depth (List []) = 1
+depth (List l) = 1 + maximum (map depth l)
+
+-- Takes a Value that is assumed to be either a scalar or a List representing
+-- a rectangular array and returns its depth
+-- Unlike depth, this function does not get into an infinite loop when given
+-- an infinite List
+--  Rectangular depth of a nonempty List is 1 plus the depth of its first
+--   element
+--  Rectangular depth of an empty List or a scalar is the same as its
+--   regular depth
+rectangularDepth :: Value -> Integer
+rectangularDepth (List (r : _)) = 1 + rectangularDepth r
+rectangularDepth x = depth x

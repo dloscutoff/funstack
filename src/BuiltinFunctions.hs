@@ -23,7 +23,9 @@ import Value (
   stringToVal,
   boolToVal,
   listOrSingleton,
-  sameTypeFalsey
+  sameTypeFalsey,
+  depth,
+  rectangularDepth
   )
 import Function (
   Function,
@@ -83,6 +85,12 @@ takeCycle n
   | n >= 0 = genericTake n . cycle
   | otherwise = reverse . genericTake (abs n) . cycle . reverse
 
+-- All but the last element of a list; if the list is empty, return
+-- empty list instead of erroring
+init' :: [a] -> [a]
+init' [] = []
+init' xs = init xs
+
 -- Get the nth element in a list, repeating as necessary; if n is negative,
 -- count backwards from the end
 indexCycle :: [a] -> Integer -> a
@@ -124,28 +132,6 @@ flatten [] = []
 flatten (Number x : vs) = ScalarNumber x : flatten vs
 flatten (Character c : vs) = ScalarChar c : flatten vs
 flatten (List l : vs) = flatten l ++ flatten vs
-
--- Takes a Value and returns its depth:
---  Depth of a scalar is 0
---  Depth of an empty List is 0
---  Depth of a nonempty List is 1 plus the depth of its deepest element
-depth :: Value -> Integer
-depth (Number _) = 0
-depth (Character _) = 0
-depth (List []) = 1
-depth (List l) = 1 + maximum (map depth l)
-
--- Takes a Value that is assumed to be either a scalar or a List representing
--- a rectangular array and returns its depth
--- Unlike depth, this function does not get into an infinite loop when given
--- an infinite List
---  Rectangular depth of a nonempty List is 1 plus the depth of its first
---   element
---  Rectangular depth of an empty List or a scalar is the same as its
---   regular depth
-rectangularDepth :: Value -> Integer
-rectangularDepth (List (r : _)) = 1 + rectangularDepth r
-rectangularDepth x = depth x
 
 -- Convert the second argument to a list of digits (least-significant first)
 -- in the base given by the first argument
@@ -211,11 +197,14 @@ builtins = Map.fromList [
   ("From0", monadic $ mapOverList $ exclRange (ScalarNumber 0)),
   ("From1", monadic $ mapOverList $ exclRange (ScalarNumber 1)),
   ("Halve", numberMathMonad (`div` 2)),
+  ("Head", monadic $ head . listOrSingleton),
   ("IFrom0", monadic $ mapOverList $ inclRange (ScalarNumber 0)),
   ("IFrom1", monadic $ mapOverList $ inclRange (ScalarNumber 1)),
   ("Id", monadic id),
   ("Inc", charMathMonad succ),
   ("Indices", monadic (\l -> List [Number i | (i, _) <- zip [0..] $ listOrSingleton l])),
+  ("Init", monadic $ List . init' . listOrSingleton),
+  ("Last", monadic $ last . listOrSingleton),
   ("Length", monadic (\l -> Number $ toInteger $ length $ listOrSingleton l)),
   ("Lines", monadic linesUnlines),
   ("Neg", numberMathMonad (0 -)),
@@ -228,6 +217,7 @@ builtins = Map.fromList [
   ("Sign", numberMathMonad signum),
   ("Square", numberMathMonad (\x -> x * x)),
   ("Stringify", monadic (stringToVal . valToString)),
+  ("Tail", monadic $ List . drop 1 . listOrSingleton),
   ("TruthyIndices", monadic (\l -> List [Number i | (i, x) <- zip [0..] $ listOrSingleton l, valToBool x])),
   ("Wrap", monadic (\x -> List [x])),
   ("Zero?", numberMathMonad $ boolToInteger . (== 0)),

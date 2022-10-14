@@ -8,6 +8,9 @@ and this project adheres to the
 
 ## Unreleased
 
+### Added
+- Builtins: Head, Init, Last, Tail
+
 ## 0.0.0 - 2022-10-12
 
 ### Added
