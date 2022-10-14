@@ -24,6 +24,7 @@ import Value (
   valToBool,
   valToString,
   scalarToInteger,
+  scalarToVal,
   stringToVal,
   boolToVal,
   listOrSingleton,
@@ -131,11 +132,11 @@ interleave (h : t) l = h : interleave l t
 
 -- Takes a list of Values that may include Lists; returns a flat list of
 -- ScalarValues
-flatten :: [Value] -> [ScalarValue]
-flatten [] = []
-flatten (Number x : vs) = ScalarNumber x : flatten vs
-flatten (Character c : vs) = ScalarChar c : flatten vs
-flatten (List l : vs) = flatten l ++ flatten vs
+flattenAll :: [Value] -> [ScalarValue]
+flattenAll [] = []
+flattenAll (Number x : vs) = ScalarNumber x : flattenAll vs
+flattenAll (Character c : vs) = ScalarChar c : flattenAll vs
+flattenAll (List l : vs) = flattenAll l ++ flattenAll vs
 
 -- Convert the second argument to a list of digits (least-significant first)
 -- in the base given by the first argument
@@ -167,7 +168,7 @@ fromBase b ds = foldr (\d n -> n * b + d) 0 ds
 -- and returns a Value
 -- Flattens second argument and treats Characters as their charcodes
 valsFromBase :: Integer -> [Value] -> Value
-valsFromBase b ds = Number $ fromBase b $ map scalarToInteger $ flatten ds
+valsFromBase b ds = Number $ fromBase b $ map scalarToInteger $ flattenAll ds
 
 -- Given a list of Values, prepend a falsey Value of the same type as the
 -- first element in the list
@@ -192,12 +193,15 @@ builtins :: Map.Map String Function
 builtins = Map.fromList [
   --- Arity 1 ---
   ("Abs", numberMathMonad abs),
+  ("All?", monadic $ boolToVal . all valToBool . listOrSingleton),
+  ("Any?", monadic $ boolToVal . any valToBool . listOrSingleton),
   ("ConsFalsey", monadic $ List . consFalsey . listOrSingleton),
   ("Cycle", monadic $ List . cycle . listOrSingleton),
   ("Dec", charMathMonad pred),
   ("Depth", monadic $ Number . depth),
   ("Double", numberMathMonad (* 2)),
   ("Flatten", monadic $ List . concatMap listOrSingleton . listOrSingleton),
+  ("FlattenAll", monadic $ List . map scalarToVal . flattenAll . listOrSingleton),
   ("From0", monadic $ mapOverList $ exclRange (ScalarNumber 0)),
   ("From1", monadic $ mapOverList $ exclRange (ScalarNumber 1)),
   ("Halve", numberMathMonad (`div` 2)),
@@ -219,6 +223,7 @@ builtins = Map.fromList [
   ("Parity", numberMathMonad (`mod` 2)),
   ("Positive?", numberMathMonad $ boolToInteger . (> 0)),
   ("Prefixes", monadic $ List . map List . inits . listOrSingleton),   -- Alias for Inits
+  ("Product", monadic $ Number . product . map scalarToInteger . flattenAll . listOrSingleton),
   ("RectDepth", monadic $ Number . rectangularDepth),
   ("Reverse", monadic $ List . reverse . listOrSingleton),
   ("Show", monadic $ stringToVal . show),
@@ -227,6 +232,7 @@ builtins = Map.fromList [
   ("Square", numberMathMonad (\x -> x * x)),
   ("Stringify", monadic $ stringToVal . valToString),
   ("Suffixes", monadic $ List . map List . tails . listOrSingleton),   -- Alias for Tails
+  ("Sum", monadic $ Number . sum . map scalarToInteger . flattenAll . listOrSingleton),
   ("Tail", monadic $ List . drop 1 . listOrSingleton),
   ("Tails", monadic $ List . map List . tails . listOrSingleton),
   ("TruthyIndices", monadic (\l -> List [Number i | (i, x) <- zip [0..] $ listOrSingleton l, valToBool x])),

@@ -9,7 +9,7 @@ and this project adheres to the
 ## Unreleased
 
 ### Added
-- Builtins: Head, Init, Inits, Last, Nub, Reverse, Sort, Tail, Tails
+- Builtins: All?, Any?, FlattenAll, Head, Init, Inits, Last, Nub, Product, Reverse, Sort, Sum, Tail, Tails
 
 ## 0.0.0 - 2022-10-12
 
