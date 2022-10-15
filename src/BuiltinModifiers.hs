@@ -4,7 +4,7 @@ module BuiltinModifiers (
 
 import Data.List (unfoldr)
 import qualified Data.Map as Map
-import Value (Value (..), listOrSingleton)
+import Value (Value (..), listOrSingleton, valToBool)
 import Function (
   Function (..),
   Arity,
@@ -113,6 +113,28 @@ iterate' f = Function (arity f) (collectArgs (arity f) [])
       | a == 1 = Constant $ List $ unfoldr iterateStep $ reverse (arg : args)
       | otherwise = Function (a - 1) $ collectArgs (a - 1) (arg : args)
     iterateStep xs = Just (head xs, tail xs ++ [applyFully f xs])
+
+-- Given a Function and a list of Values, take elements from the list while
+-- applying the Function to them results in a truthy Value
+-- For higher-arity Functions, include elements up to but not including
+-- the first element that makes the predicate falsey
+takeWhile' :: Function -> [Value] -> [Value]
+takeWhile' f xs
+  | length args < arity f = xs
+  | valToBool (applyFully f args) = head xs : takeWhile' f (tail xs)
+  | otherwise = init args
+  where args = take (arity f) xs
+
+-- Given a Function and a list of Values, drop elements from the list while
+-- applying the Function to them results in a truthy Value
+-- For higher-arity Functions, discard elements up to but not including
+-- the first element that makes the predicate falsey
+dropWhile' :: Function -> [Value] -> [Value]
+dropWhile' f xs
+  | length args < arity f = []
+  | valToBool (applyFully f args) = dropWhile' f (tail xs)
+  | otherwise = drop (arity f - 1) xs
+  where args = take (arity f) xs
 
 -- Bind multiple Functions to an argument and return a list of new Functions
 parallelBind :: [Function] -> Value -> [Function]
@@ -306,6 +328,7 @@ foldr1' f l
 modifiers :: Map.Map String Modifier
 modifiers = Map.fromList [
   --- 1-modifiers ---
+  ("dropwhile", Modifier1 (\f -> monadic (List . dropWhile' f . listOrSingleton))),
   ("flatmap", Modifier1 (\f -> Builtin.fnFlatten <> mapZipping f)),
   ("flip", Modifier1 flipArgs),
   ("foldl", Modifier1 (\f -> dyadic (\x ys -> foldl' f x $ listOrSingleton ys))),
@@ -326,6 +349,7 @@ modifiers = Map.fromList [
   ("self", Modifier1 $ convertArity 1),
   ("selftable", Modifier1 $ convertArity 1 . table),
   ("table", Modifier1 table),
+  ("takewhile", Modifier1 (\f -> monadic (List . takeWhile' f . listOrSingleton))),
   ("zipwith", Modifier1 mapZipping),  -- Alias for map
   --- 2-modifiers ---
   ("compose", Modifier2 compose2),
