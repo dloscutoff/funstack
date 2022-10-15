@@ -17,7 +17,9 @@ module Value (
   listOrSingleton,
   sameTypeFalsey,
   depth,
-  rectangularDepth
+  rectangularDepth,
+  flattenOnce,
+  flattenAll
 ) where
 
 -- Value is the main data type for values in FunStack:
@@ -183,3 +185,16 @@ depth (List l) = 1 + maximum (map depth l)
 rectangularDepth :: Value -> Integer
 rectangularDepth (List (r : _)) = 1 + rectangularDepth r
 rectangularDepth x = depth x
+
+-- Take a list of Values; convert Lists to Haskell lists and scalars to
+-- singleton lists, concatenate them all together, and return that list
+flattenOnce :: [Value] -> [Value]
+flattenOnce = concatMap listOrSingleton
+
+-- Take a list of Values that may include Lists; return a flat list of
+-- ScalarValues
+flattenAll :: [Value] -> [ScalarValue]
+flattenAll [] = []
+flattenAll (Number x : vs) = ScalarNumber x : flattenAll vs
+flattenAll (Character c : vs) = ScalarChar c : flattenAll vs
+flattenAll (List l : vs) = flattenAll l ++ flattenAll vs

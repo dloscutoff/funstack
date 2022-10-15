@@ -9,7 +9,8 @@ and this project adheres to the
 ## Unreleased
 
 ### Added
-- Builtins: All?, Any?, FlattenAll, Head, Init, Inits, Last, Nub, Product, Reverse, Sort, Sum, Tail, Tails
+- Builtins: All?, Any?, FlattenAll, Head, Init, Inits/Prefixes, Last, Not/Falsey?, Nub/Unique, Product, Reverse, Sort, Sum, Tail, Tails/Suffixes
+- Modifiers: branch, flatmap, fork, invariant, not, pair
 
 ## 0.0.0 - 2022-10-12
 

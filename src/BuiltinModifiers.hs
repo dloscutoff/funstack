@@ -20,6 +20,7 @@ import Function (
   dyadic
   )
 import Modifier (Modifier (..))
+import qualified BuiltinFunctions as Builtin
 
 -- Compose two Functions
 -- This is merely an alias for the binary operator of the Function semigroup
@@ -210,10 +211,13 @@ table f
 modifiers :: Map.Map String Modifier
 modifiers = Map.fromList [
   --- 1-modifiers ---
+  ("flatmap", Modifier1 (\f -> Builtin.fnFlatten <> mapZipping f)),
   ("flip", Modifier1 flipArgs),
+  ("invariant", Modifier1 (\f -> hook Builtin.fnSame f)),
   ("iterate", Modifier1 iterate'),
   ("lmap", Modifier1 mapLeft),
   ("map", Modifier1 mapZipping),
+  ("not", Modifier1 (Builtin.fnNot <>)),
   ("rmap", Modifier1 mapRight),
   ("rotate", Modifier1 rotateArgs),
   ("self", Modifier1 $ convertArity 1),
@@ -224,9 +228,12 @@ modifiers = Map.fromList [
   ("compose", Modifier2 compose2),
   ("hook", Modifier2 hook),
   ("over", Modifier2 over),
+  ("pair", Modifier2 (\f g -> hook (Builtin.fnPair <> f) g)),
   ("rcompose", Modifier2 rcompose2),
   --- 3-modifiers ---
+  ("branch", Modifier3 (\f g h -> rcompose2 (f <> g) h)),
   ("compose3", Modifier3 compose3),
+  ("fork", Modifier3 (\f g h -> hook (f <> g) h)),
   ("rcompose3", Modifier3 rcompose3),
   --- 4-modifiers ---
   ("compose4", Modifier4 compose4)

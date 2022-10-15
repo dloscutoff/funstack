@@ -1,5 +1,9 @@
 module BuiltinFunctions (
-  builtins
+  builtins,
+  fnFlatten,
+  fnNot,
+  fnPair,
+  fnSame
 ) where
 
 import Data.List (
@@ -30,7 +34,9 @@ import Value (
   listOrSingleton,
   sameTypeFalsey,
   depth,
-  rectangularDepth
+  rectangularDepth,
+  flattenOnce,
+  flattenAll
   )
 import Function (
   Function,
@@ -130,14 +136,6 @@ interleave :: [a] -> [a] -> [a]
 interleave [] l = l
 interleave (h : t) l = h : interleave l t
 
--- Takes a list of Values that may include Lists; returns a flat list of
--- ScalarValues
-flattenAll :: [Value] -> [ScalarValue]
-flattenAll [] = []
-flattenAll (Number x : vs) = ScalarNumber x : flattenAll vs
-flattenAll (Character c : vs) = ScalarChar c : flattenAll vs
-flattenAll (List l : vs) = flattenAll l ++ flattenAll vs
-
 -- Convert the second argument to a list of digits (least-significant first)
 -- in the base given by the first argument
 -- Passing the result to fromBase always gives the original number back
@@ -188,6 +186,20 @@ linesUnlines = linesUnlines' . valToDisplay
     linesUnlines' (AsChar c) = List $ map stringToVal $ lines [c]
     linesUnlines' (AsNumber n) = List $ map (List . map Character) [show n]
 
+-- The following builtins are used elsewhere besides just being included in
+-- the builtins Map, so they are defined separately
+fnFlatten :: Function
+fnFlatten = monadic $ List . flattenOnce . listOrSingleton
+
+fnNot :: Function
+fnNot = monadic $ boolToVal . not . valToBool
+
+fnPair :: Function
+fnPair = dyadic (\x y -> List [x, y])
+
+fnSame :: Function
+fnSame = dyadic (\x y -> boolToVal $ x == y)
+
 -- The built-in functions are stored in a Map from names to Functions
 builtins :: Map.Map String Function
 builtins = Map.fromList [
@@ -200,7 +212,8 @@ builtins = Map.fromList [
   ("Dec", charMathMonad pred),
   ("Depth", monadic $ Number . depth),
   ("Double", numberMathMonad (* 2)),
-  ("Flatten", monadic $ List . concatMap listOrSingleton . listOrSingleton),
+  ("Falsey?", fnNot),   -- Alias for Not
+  ("Flatten", fnFlatten),
   ("FlattenAll", monadic $ List . map scalarToVal . flattenAll . listOrSingleton),
   ("From0", monadic $ mapOverList $ exclRange (ScalarNumber 0)),
   ("From1", monadic $ mapOverList $ exclRange (ScalarNumber 1)),
@@ -218,6 +231,7 @@ builtins = Map.fromList [
   ("Lines", monadic linesUnlines),
   ("Neg", numberMathMonad (0 -)),
   ("Negative?", numberMathMonad $ boolToInteger . (< 0)),
+  ("Not", fnNot),
   ("Nub", monadic $ List . nub . listOrSingleton),
   ("Odd?", numberMathMonad (`mod` 2)),   -- Alias for Parity
   ("Parity", numberMathMonad (`mod` 2)),
@@ -261,12 +275,12 @@ builtins = Map.fromList [
   ("Mod", numberMathDyad $ flip mod),
   ("NotEqual?", numberMathDyad $ (boolToInteger .) . (/=)),
   ("NotSame?", dyadic (\x y -> boolToVal $ x /= y)),
-  ("Pair", dyadic (\x y -> List [x, y])),
+  ("Pair", fnPair),
   ("Plus", charMathDyad (+)),
   ("Pow", numberMathDyad (^)),
   ("Range", dyadic $ mapOverLists exclRange),
   ("Rotate", numAndListDyad $ (List .) . rotate),
-  ("Same?", dyadic (\x y -> boolToVal $ x == y)),
+  ("Same?", fnSame),
   ("Take", numAndListDyad $ (List .) . take'),
   ("TakeCycle", numAndListDyad $ (List .) . takeCycle),
   ("Times", charMathDyad (*)),
