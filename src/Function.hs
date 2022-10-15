@@ -77,8 +77,7 @@ instance Monoid Function where
   mempty = Function 1 Constant
 
 -- Bind an argument to a Function
--- Unlike unsafeBind, this also works if the function is a Constant (leaving
--- it unchanged)
+-- This also works if the function is a Constant (leaving it unchanged)
 bind :: Function -> Value -> Function
 bind f = (f <>) . Constant
 

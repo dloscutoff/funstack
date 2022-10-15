@@ -10,7 +10,7 @@ and this project adheres to the
 
 ### Added
 - Builtins: All?, Any?, Compare, FlattenAll, Head, Init, Inits/Prefixes, Last, Not/Falsey?, Nub/Unique, Product, Repeat, Reverse, Sort, Sum, Tail, Tails/Suffixes
-- Modifiers: branch, dropwhile, fixiter, fixpoint, flatmap, foldl, foldl1, foldr, foldr1, fork, invariant, not, pair, scanl, scanl1, scanr, scanr1, takewhile
+- Modifiers: and, branch, dropwhile, fixiter, fixpoint, flatmap, foldl, foldl1, foldr, foldr1, fork, if, invariant, not, or, pair, scanl, scanl1, scanr, scanr1, takewhile
 
 ## 0.0.0 - 2022-10-12
 

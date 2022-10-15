@@ -64,12 +64,25 @@ over' f g g'
   | otherwise = Function a' (\x -> over' f g (bind g' x))
   where a' = (arity f - 1) * (arity g) + (arity g')
 
--- Pass different arguments to the second Function, then pass the results
--- as arguments to the first Function
+-- Given an arity-N Function and an arity-M Function, return an arity-N*M
+-- Function: pass N groups of M arguments each through the second Function;
+-- then pass those N results as arguments to the first Function
 over :: Function -> Function -> Function
 over f g
   | arity f <= 1 = f <> g
   | otherwise = over' f g g
+
+-- Pass the same arguments to three different Functions: if the result from
+-- the first Function is truthy, use the result from the second Function;
+-- otherwise, use the result from the third Function
+-- The unused Function is never called
+ifThenElse :: Function -> Function -> Function -> Function
+ifThenElse f g h = ifThenElse' a f g h
+  where
+    a = maximum $ map arity [f, g, h]
+    ifThenElse' a' f' g' h'
+      | a' == 1 = Function 1 (\x -> if (valToBool $ apply f' x) then (bind g' x) else (bind h' x))
+      | otherwise = Function a' (\x -> ifThenElse' (a' - 1) (bind f' x) (bind g' x) (bind h' x))
 
 -- Modify a Function to take its first argument second and its second
 -- argument first
@@ -378,8 +391,10 @@ modifiers = Map.fromList [
   ("takewhile", Modifier1 (\f -> monadic (List . takeWhile' f . listOrSingleton))),
   ("zipwith", Modifier1 mapZipping),  -- Alias for map
   --- 2-modifiers ---
+  ("and", Modifier2 (\f g -> ifThenElse f g f)),
   ("compose", Modifier2 compose2),
   ("hook", Modifier2 hook),
+  ("or", Modifier2 (\f g -> ifThenElse f f g)),
   ("over", Modifier2 over),
   ("pair", Modifier2 (\f g -> hook (Builtin.fnPair <> f) g)),
   ("rcompose", Modifier2 rcompose2),
@@ -387,6 +402,7 @@ modifiers = Map.fromList [
   ("branch", Modifier3 (\f g h -> rcompose2 (f <> g) h)),
   ("compose3", Modifier3 compose3),
   ("fork", Modifier3 (\f g h -> hook (f <> g) h)),
+  ("if", Modifier3 ifThenElse),
   ("rcompose3", Modifier3 rcompose3),
   --- 4-modifiers ---
   ("compose4", Modifier4 compose4)
