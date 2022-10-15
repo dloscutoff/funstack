@@ -207,12 +207,111 @@ table f
       Function a (\xs -> parallel (a - 1) [table $ bind f x | x <- listOrSingleton xs])
   where a = arity f
 
+-- Given a Function, an intial accumulator Value, and a list of Values,
+-- perform a generalized left scan
+-- At each step, the accumulator is passed as the first argument of the
+-- Function, followed by the first N-1 elements of the list, where N is
+-- the Function's arity
+-- Once there are not enough elements left in the list, the process stops
+scanl' :: Function -> Value -> [Value] -> [Value]
+scanl' f x l
+  | arity f <= 1 = error "Function for scanl must have arity >= 2"
+  | length args < argnum = [x]
+  | otherwise = x : scanl' f accum remainder
+  where
+    argnum = arity f - 1
+    args = take argnum l
+    remainder = drop argnum l
+    accum = applyFully f (x : args)
+
+-- Same as scanl', but use the first element of the list as the initial
+-- accumulator value; if the list is empty, return empty list
+scanl1' :: Function -> [Value] -> [Value]
+scanl1' f l
+  | arity f <= 1 = error "Function for scanl1 must have arity >= 2"
+  | null l = []
+  | otherwise = scanl' f (head l) (tail l)
+
+-- Given a Function, an intial accumulator Value, and a list of Values,
+-- perform a generalized right scan
+-- At each step, the first N-1 elements of the list (where N is the
+-- Function's arity) plus the result of a recursive call are passed as
+-- arguments to the Function
+-- Once there are not enough elements left in the list, the process stops
+scanr' :: Function -> Value -> [Value] -> [Value]
+scanr' f x l
+  | arity f <= 1 = error "Function for scanr must have arity >= 2"
+  | length args < argnum = [x]
+  | otherwise = applyFully f (args ++ take 1 accum) : accum
+  where
+    argnum = arity f - 1
+    args = take argnum l
+    remainder = drop argnum l
+    accum = scanr' f x remainder
+
+-- Same as scanr', but use the last element of the list as the initial
+-- accumulator value; if the list is empty, return empty list
+-- If the arity of the Function is greater than 2, the initial accumulator
+-- may not be the last element of the list per se, but rather the k*(N-1)st
+-- element (0-indexed) for some k, where N is the arity of the Function
+scanr1' :: Function -> [Value] -> [Value]
+scanr1' f l
+  | arity f <= 1 = error "Function for scanr1 must have arity >= 2"
+  | null l = []
+  | null remainder = take 1 l
+  | otherwise = applyFully f (args ++ take 1 accum) : accum
+  where
+    argnum = arity f - 1
+    args = take argnum l
+    remainder = drop argnum l
+    accum = scanr1' f remainder
+
+-- Given a Function, an intial accumulator Value, and a list of Values,
+-- perform a generalized left fold by taking the last element of the left scan
+foldl' :: Function -> Value -> [Value] -> Value
+foldl' f x l
+  | arity f <= 1 = error "Function for foldl must have arity >= 2"
+  | otherwise = last $ scanl' f x l
+
+-- Same as foldl', but use the first element of the list as the initial
+-- accumulator value
+-- If the list is empty, error
+foldl1' :: Function -> [Value] -> Value
+foldl1' f l
+  | arity f <= 1 = error "Function for foldl1 must have arity >= 2"
+  | null l = error $ "Cannot foldl1 empty list"
+  | otherwise = last $ scanl1' f l
+
+-- Given a Function, an intial accumulator Value, and a list of Values,
+-- perform a generalized right fold by taking the first element of the
+-- right scan
+foldr' :: Function -> Value -> [Value] -> Value
+foldr' f x l
+  | arity f <= 1 = error "Function for foldr must have arity >= 2"
+  | otherwise = head $ scanr' f x l
+
+-- Same as foldr', but use the last element of the list as the initial
+-- accumulator value
+-- If the arity of the Function is greater than 2, the initial accumulator
+-- may not be the last element of the list per se, but rather the k*(N-1)st
+-- element (0-indexed) for some k, where N is the arity of the Function
+-- If the list is empty, error
+foldr1' :: Function -> [Value] -> Value
+foldr1' f l
+  | arity f <= 1 = error "Function for foldr1 must have arity >= 2"
+  | null l = error $ "Cannot foldr1 empty list"
+  | otherwise = head $ scanr1' f l
+
 -- The built-in modifiers are stored in a Map from names to Modifiers
 modifiers :: Map.Map String Modifier
 modifiers = Map.fromList [
   --- 1-modifiers ---
   ("flatmap", Modifier1 (\f -> Builtin.fnFlatten <> mapZipping f)),
   ("flip", Modifier1 flipArgs),
+  ("foldl", Modifier1 (\f -> dyadic (\x ys -> foldl' f x $ listOrSingleton ys))),
+  ("foldl1", Modifier1 (\f -> monadic (\xs -> foldl1' f $ listOrSingleton xs))),
+  ("foldr", Modifier1 (\f -> dyadic (\x ys -> foldr' f x $ listOrSingleton ys))),
+  ("foldr1", Modifier1 (\f -> monadic (\xs -> foldr1' f $ listOrSingleton xs))),
   ("invariant", Modifier1 (\f -> hook Builtin.fnSame f)),
   ("iterate", Modifier1 iterate'),
   ("lmap", Modifier1 mapLeft),
@@ -220,6 +319,10 @@ modifiers = Map.fromList [
   ("not", Modifier1 (Builtin.fnNot <>)),
   ("rmap", Modifier1 mapRight),
   ("rotate", Modifier1 rotateArgs),
+  ("scanl", Modifier1 (\f -> dyadic (\x ys -> List $ scanl' f x $ listOrSingleton ys))),
+  ("scanl1", Modifier1 (\f -> monadic (\xs -> List $ scanl1' f $ listOrSingleton xs))),
+  ("scanr", Modifier1 (\f -> dyadic (\x ys -> List $ scanr' f x $ listOrSingleton ys))),
+  ("scanr1", Modifier1 (\f -> monadic (\xs -> List $ scanr1' f $ listOrSingleton xs))),
   ("self", Modifier1 $ convertArity 1),
   ("selftable", Modifier1 $ convertArity 1 . table),
   ("table", Modifier1 table),

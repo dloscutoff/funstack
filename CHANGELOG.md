@@ -10,7 +10,7 @@ and this project adheres to the
 
 ### Added
 - Builtins: All?, Any?, FlattenAll, Head, Init, Inits/Prefixes, Last, Not/Falsey?, Nub/Unique, Product, Reverse, Sort, Sum, Tail, Tails/Suffixes
-- Modifiers: branch, flatmap, fork, invariant, not, pair
+- Modifiers: branch, flatmap, foldl, foldl1, foldr, foldr1, fork, invariant, not, pair, scanl, scanl1, scanr, scanr1
 
 ## 0.0.0 - 2022-10-12
 
