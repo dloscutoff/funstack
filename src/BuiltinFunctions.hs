@@ -31,6 +31,7 @@ import Value (
   scalarToVal,
   stringToVal,
   boolToVal,
+  orderingToVal,
   listOrSingleton,
   sameTypeFalsey,
   depth,
@@ -108,6 +109,10 @@ indexCycle :: [a] -> Integer -> a
 indexCycle l n
   | n >= 0 = genericIndex (cycle l) n
   | otherwise = genericIndex (cycle $ reverse l) (abs n - 1)
+
+-- Repeat the contents of a list n times
+repeat' :: Integer -> [a] -> [a]
+repeat' n l = concat $ genericReplicate n l
 
 -- Rotate a list n elements to the left (to the right if n is negative)
 rotate :: Integer -> [a] -> [a]
@@ -256,6 +261,7 @@ builtins = Map.fromList [
   --- Arity 2 ---
   ("At", numAndListDyad $ flip genericIndex),
   ("AtCycle", numAndListDyad $ flip indexCycle),
+  ("Compare", dyadic (\x y -> orderingToVal $ x `compare` y)),
   ("Concat", dyadic (\x y -> List $ listOrSingleton x ++ listOrSingleton y)),
   ("Cons", dyadic (\x y -> List $ x : listOrSingleton y)),
   ("Consr", dyadic (\x y -> List $ listOrSingleton y ++ [x])),
@@ -279,6 +285,7 @@ builtins = Map.fromList [
   ("Plus", charMathDyad (+)),
   ("Pow", numberMathDyad (^)),
   ("Range", dyadic $ mapOverLists exclRange),
+  ("Repeat", numAndListDyad $ (List .) . repeat'),
   ("Rotate", numAndListDyad $ (List .) . rotate),
   ("Same?", fnSame),
   ("Take", numAndListDyad $ (List .) . take'),
