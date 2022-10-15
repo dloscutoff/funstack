@@ -82,6 +82,15 @@ flipArgs f = Function (max 2 (arity f)) (\x -> bindSecond f x)
 rotateArgs :: Function -> Function
 rotateArgs f = Function (arity f) (\x -> rbind f x)
 
+-- Given a Function, return a new Function that works as follows:
+--  Collect a given number of arguments in a list
+--  Once the full number of arguments has been collected, apply the original
+--   Function to the collected arguments using the given application function
+collectArgs :: Function -> Arity -> (Function -> [Value] -> Value) -> [Value] -> Value -> Function
+collectArgs f a applyFn args arg
+  | a <= 1 = Constant $ applyFn f $ reverse (arg : args)
+  | otherwise = Function (a - 1) $ collectArgs f (a - 1) applyFn (arg : args)
+
 -- Modify a Function to have the given arity
 --  If the new arity is the same as the old arity, no change is made
 --  If the new arity is greater than the old arity, the extra arguments
@@ -95,11 +104,7 @@ convertArity a' (Constant x)
 convertArity a' f
   | a' < 1 = error "Cannot convert function to arity less than 1"
   | a' == arity f = f
-  | otherwise = Function a' $ collectArgs a' []
-  where
-    collectArgs a args arg
-      | a == 1 = Constant $ applyFully f $ reverse (arg : args)
-      | otherwise = Function (a - 1) $ collectArgs (a - 1) (arg : args)
+  | otherwise = Function a' $ collectArgs f a' applyFully []
 
 -- Modify a Function to generate an infinite List by repeated appliction
 -- The new Function has the same arity (call it N) as the original Function
@@ -107,12 +112,31 @@ convertArity a' f
 -- element is the result of applying the Function over the preceding N
 -- elements
 iterate' :: Function -> Function
-iterate' f = Function (arity f) (collectArgs (arity f) [])
+iterate' f = Function (arity f) (collectArgs f (arity f) iterateApply [])
   where
-    collectArgs a args arg
-      | a == 1 = Constant $ List $ unfoldr iterateStep $ reverse (arg : args)
-      | otherwise = Function (a - 1) $ collectArgs (a - 1) (arg : args)
-    iterateStep xs = Just (head xs, tail xs ++ [applyFully f xs])
+    iterateStep f' args = Just (head args, tail args ++ [applyFully f' args])
+    iterateApply f' = List . unfoldr (iterateStep f')
+
+-- Same as iterate', but stop when the results stop changing
+-- For higher-arity Functions, the entire argument list must remain unchanged
+-- to stop the iteration
+fixiter :: Function -> Function
+fixiter f = Function (arity f) (collectArgs f (arity f) fixiterApply [])
+  where
+    fixiterApply' f' args
+      | all (== newVal) args = args
+      | otherwise = head args : fixiterApply' f' (tail args ++ [newVal])
+      where newVal = applyFully f' args
+    fixiterApply f' = List . fixiterApply' f'
+
+-- Same as fixiter, but only return the final result, not the whole list
+fixpoint :: Function -> Function
+fixpoint f = Function (arity f) (collectArgs f (arity f) fixpointApply [])
+  where
+    fixpointApply f' args
+      | all (== newVal) args = newVal
+      | otherwise = fixpointApply f (tail args ++ [newVal])
+      where newVal = applyFully f' args
 
 -- Given a Function and a list of Values, take elements from the list while
 -- applying the Function to them results in a truthy Value
@@ -329,6 +353,8 @@ modifiers :: Map.Map String Modifier
 modifiers = Map.fromList [
   --- 1-modifiers ---
   ("dropwhile", Modifier1 (\f -> monadic (List . dropWhile' f . listOrSingleton))),
+  ("fixiter", Modifier1 fixiter),
+  ("fixpoint", Modifier1 fixpoint),
   ("flatmap", Modifier1 (\f -> Builtin.fnFlatten <> mapZipping f)),
   ("flip", Modifier1 flipArgs),
   ("foldl", Modifier1 (\f -> dyadic (\x ys -> foldl' f x $ listOrSingleton ys))),
