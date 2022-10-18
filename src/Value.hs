@@ -15,6 +15,7 @@ module Value (
   boolToVal,
   orderingToVal,
   listOrSingleton,
+  listOrString,
   sameTypeFalsey,
   depth,
   rectangularDepth,
@@ -157,6 +158,12 @@ orderingToVal = Number . toInteger . pred . fromEnum
 listOrSingleton :: Value -> [Value]
 listOrSingleton (List l) = l
 listOrSingleton x = [x]
+
+-- Given a List, return it as a [Value]; given any other Value, stringify
+-- it and return it as a list of Characters
+listOrString :: Value -> [Value]
+listOrString (List l) = l
+listOrString x = map Character $ valToString x
 
 -- Given a Value, return a falsey Value of the same type
 sameTypeFalsey :: Value -> Value

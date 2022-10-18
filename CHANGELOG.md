@@ -11,6 +11,9 @@ and this project adheres to the
 ### Added
 - Modifiers: until, while
 
+### Changed
+- Length of a number is now the length of its stringification
+
 ## 0.0.1 - 2022-10-14
 
 ### Added
