@@ -361,6 +361,11 @@ foldr1' f l
   | null l = error $ "Cannot foldr1 empty list"
   | otherwise = head $ scanr1' f l
 
+-- Given a Function, apply the takewhile modifier to it and return a
+-- new Function
+modTakeWhile :: Function -> Function
+modTakeWhile f = monadic $ List . takeWhile' f . listOrSingleton
+
 -- The built-in modifiers are stored in a Map from names to Modifiers
 modifiers :: Map.Map String Modifier
 modifiers = Map.fromList [
@@ -388,7 +393,7 @@ modifiers = Map.fromList [
   ("self", Modifier1 $ convertArity 1),
   ("selftable", Modifier1 $ convertArity 1 . table),
   ("table", Modifier1 table),
-  ("takewhile", Modifier1 (\f -> monadic (List . takeWhile' f . listOrSingleton))),
+  ("takewhile", Modifier1 modTakeWhile),
   ("zipwith", Modifier1 mapZipping),  -- Alias for map
   --- 2-modifiers ---
   ("and", Modifier2 (\f g -> ifThenElse f g f)),
@@ -398,6 +403,8 @@ modifiers = Map.fromList [
   ("over", Modifier2 over),
   ("pair", Modifier2 (\f g -> hook (Builtin.fnPair <> f) g)),
   ("rcompose", Modifier2 rcompose2),
+  ("until", Modifier2 (\f g -> modTakeWhile (Builtin.fnNot <> g) <> iterate' f)),
+  ("while", Modifier2 (\f g -> modTakeWhile g <> iterate' f)),
   --- 3-modifiers ---
   ("branch", Modifier3 (\f g h -> rcompose2 (f <> g) h)),
   ("compose3", Modifier3 compose3),

@@ -8,6 +8,9 @@ and this project adheres to the
 
 ## Unreleased
 
+### Added
+- Modifiers: until, while
+
 ## 0.0.1 - 2022-10-14
 
 ### Added
