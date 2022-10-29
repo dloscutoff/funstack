@@ -13,6 +13,7 @@ import Data.List (
   nub,
   subsequences,
   unfoldr,
+  genericLength,
   genericTake,
   genericDrop,
   genericIndex,
@@ -38,7 +39,8 @@ import Value (
   depth,
   rectangularDepth,
   flattenOnce,
-  flattenAll
+  flattenAll,
+  toIntegerList
   )
 import Function (
   Function,
@@ -123,7 +125,7 @@ rotate n l
   | minlength < abs n = rotate (n `mod` minlength) l
   | n > 0 = drop' n l ++ take' n l
   | otherwise = take' n l ++ drop' n l
-  where minlength = toInteger (length (take' n l))
+  where minlength = genericLength $ take' n l
 
 -- Get all length-n slices of a list
 --  If n is negative, start from the end of the list
@@ -136,11 +138,29 @@ windows n
                                then Nothing
                                else Just (take' n l, tail l))
 
+-- Take chunks (contiguous sublists) of the given sizes from a list
+-- If a chunk size is negative, take from the end of the list
+chunks :: [Integer] -> [a] -> [[a]]
+chunks [] _ = []
+chunks _ [] = []
+chunks (x : xs) l = take' x l : chunks xs (drop' x l)
+
+-- Divide a list into n roughly equal-size chunks
+partition :: Integer -> [a] -> [[a]]
+partition n l
+  | n < 0 = map reverse $ partition (-n) (reverse l)
+  | otherwise = chunks (chunkSizes n (genericLength l)) l
+  where
+    chunkSizes :: Integer -> Integer -> [Integer]
+    chunkSizes 0 _ = []
+    chunkSizes count totalSize = size : chunkSizes (count - 1) (totalSize - size)
+      where size = totalSize `div` count
+
 -- Merge two lists into a single list, alternating their elements
 -- Once one list runs out of elements, append the remainder of the other list
 interleave :: [a] -> [a] -> [a]
 interleave [] l = l
-interleave (h : t) l = h : interleave l t
+interleave (x : xs) l = x : interleave l xs
 
 -- Convert the second argument to a list of digits (least-significant first)
 -- in the base given by the first argument
@@ -233,7 +253,7 @@ builtins = Map.fromList [
   ("Init", monadic $ List . init' . listOrSingleton),
   ("Inits", monadic $ List . map List . inits . listOrSingleton),
   ("Last", monadic $ last . listOrSingleton),
-  ("Length", monadic (\l -> Number $ toInteger $ length $ listOrString l)),
+  ("Length", monadic (\l -> Number $ genericLength $ listOrString l)),
   ("Lines", monadic linesUnlines),
   ("Neg", numberMathMonad (0 -)),
   ("Negative?", numberMathMonad $ boolToInteger . (< 0)),
@@ -243,7 +263,7 @@ builtins = Map.fromList [
   ("Parity", numberMathMonad (`mod` 2)),
   ("Positive?", numberMathMonad $ boolToInteger . (> 0)),
   ("Prefixes", monadic $ List . map List . inits . listOrSingleton),   -- Alias for Inits
-  ("Product", monadic $ Number . product . map scalarToInteger . flattenAll . listOrSingleton),
+  ("Product", monadic $ Number . product . toIntegerList),
   ("RectDepth", monadic $ Number . rectangularDepth),
   ("Reverse", monadic $ List . reverse . listOrSingleton),
   ("Show", monadic $ stringToVal . show),
@@ -252,7 +272,7 @@ builtins = Map.fromList [
   ("Square", numberMathMonad (\x -> x * x)),
   ("Stringify", monadic $ stringToVal . valToString),
   ("Suffixes", monadic $ List . map List . tails . listOrSingleton),   -- Alias for Tails
-  ("Sum", monadic $ Number . sum . map scalarToInteger . flattenAll . listOrSingleton),
+  ("Sum", monadic $ Number . sum . toIntegerList),
   ("Tail", monadic $ List . drop 1 . listOrSingleton),
   ("Tails", monadic $ List . map List . tails . listOrSingleton),
   ("TruthyIndices", monadic (\l -> List [Number i | (i, x) <- zip [0..] $ listOrSingleton l, valToBool x])),
@@ -262,6 +282,8 @@ builtins = Map.fromList [
   --- Arity 2 ---
   ("At", numAndListDyad $ flip genericIndex),
   ("AtCycle", numAndListDyad $ flip indexCycle),
+  ("Chunk", dyadic (\x y -> List $ map List $ chunks (cycle $ toIntegerList x) (listOrSingleton y))),   -- Alias for Chunks
+  ("Chunks", dyadic (\x y -> List $ map List $ chunks (cycle $ toIntegerList x) (listOrSingleton y))),
   ("Compare", dyadic (\x y -> orderingToVal $ x `compare` y)),
   ("Concat", dyadic (\x y -> List $ listOrSingleton x ++ listOrSingleton y)),
   ("Cons", dyadic (\x y -> List $ x : listOrSingleton y)),
@@ -283,6 +305,7 @@ builtins = Map.fromList [
   ("NotEqual?", numberMathDyad $ (boolToInteger .) . (/=)),
   ("NotSame?", dyadic (\x y -> boolToVal $ x /= y)),
   ("Pair", fnPair),
+  ("Partition", numAndListDyad $ ((List . map List) .) . partition),
   ("Plus", charMathDyad (+)),
   ("Pow", numberMathDyad (^)),
   ("Range", dyadic $ mapOverLists exclRange),

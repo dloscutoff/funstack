@@ -20,7 +20,8 @@ module Value (
   depth,
   rectangularDepth,
   flattenOnce,
-  flattenAll
+  flattenAll,
+  toIntegerList
 ) where
 
 -- Value is the main data type for values in FunStack:
@@ -205,3 +206,10 @@ flattenAll [] = []
 flattenAll (Number x : vs) = ScalarNumber x : flattenAll vs
 flattenAll (Character c : vs) = ScalarChar c : flattenAll vs
 flattenAll (List l : vs) = flattenAll l ++ flattenAll vs
+
+-- Take a Value and convert it to a list of Integers:
+--  If it's a scalar, wrap it in a singleton list
+--  Flatten the list
+--  Convert any characters in the result to their codepoints
+toIntegerList :: Value -> [Integer]
+toIntegerList = map scalarToInteger . flattenAll . listOrSingleton

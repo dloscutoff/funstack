@@ -9,6 +9,7 @@ and this project adheres to the
 ## Unreleased
 
 ### Added
+- Builtins: Chunks, Partition
 - Modifiers: until, while
 
 ### Changed
