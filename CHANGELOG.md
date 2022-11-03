@@ -10,7 +10,7 @@ and this project adheres to the
 
 ### Added
 - Builtins: Chunks, Partition
-- Modifiers: until, while
+- Modifiers: mapwindows, until, while
 
 ### Changed
 - Length of a number is now the length of its stringification

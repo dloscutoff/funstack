@@ -1,4 +1,5 @@
 module BuiltinFunctions (
+  windows,
   builtins,
   fnFlatten,
   fnNot,
@@ -130,13 +131,13 @@ rotate n l
 -- Get all length-n slices of a list
 --  If n is negative, start from the end of the list
 --  If n is zero, get all nonempty slices
-windows :: Integer -> [a] -> [[a]]
+windows :: Integral a => a -> [b] -> [[b]]
 windows n
   | n < 0 = reverse . windows (abs n)
   | n == 0 = tail . subsequences
-  | otherwise = unfoldr (\l -> if null (drop' (n - 1) l)
+  | otherwise = unfoldr (\l -> if null (drop' (toInteger n - 1) l)
                                then Nothing
-                               else Just (take' n l, tail l))
+                               else Just (take' (toInteger n) l, tail l))
 
 -- Take chunks (contiguous sublists) of the given sizes from a list
 -- If a chunk size is negative, take from the end of the list

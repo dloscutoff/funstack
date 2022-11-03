@@ -20,6 +20,7 @@ import Function (
   dyadic
   )
 import Modifier (Modifier (..))
+import BuiltinFunctions (windows)
 import qualified BuiltinFunctions as Builtin
 
 -- Compose two Functions
@@ -255,6 +256,10 @@ mapRight f
   | otherwise = Function a (\x -> mapRight $ bind f x)
   where a = arity f
 
+-- Convert an arity-N Function to map over size-N windows from a List
+mapWindows :: Function -> Function
+mapWindows f = monadic (\xs -> List $ map (applyFully f) $ windows (arity f) (listOrSingleton xs))
+
 -- Convert an arity-N Function to a Function that creates a depth-N nested
 -- List containing the results of applying the original Function to every
 -- combination of values from its arguments (N-dimensional outer product)
@@ -383,6 +388,7 @@ modifiers = Map.fromList [
   ("iterate", Modifier1 iterate'),
   ("lmap", Modifier1 mapLeft),
   ("map", Modifier1 mapZipping),
+  ("mapwindows", Modifier1 mapWindows),
   ("not", Modifier1 (Builtin.fnNot <>)),
   ("rmap", Modifier1 mapRight),
   ("rotate", Modifier1 rotateArgs),
