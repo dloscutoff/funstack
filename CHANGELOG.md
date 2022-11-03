@@ -8,6 +8,8 @@ and this project adheres to the
 
 ## Unreleased
 
+## 0.0.2 - 2022-11-02
+
 ### Added
 - Builtins: Chunks, Partition
 - Modifiers: mapwindows, until, while
