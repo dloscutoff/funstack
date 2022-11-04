@@ -2,7 +2,7 @@ module Main (main) where
 
 import qualified System.IO as IO
 import qualified System.Environment as Env
-import Parse (parse, parseArgs)
+import VerboseParser (parse, parseArgs)
 import Command (executeProgram)
 
 -- Given a program and list of args, parse both and execute the program

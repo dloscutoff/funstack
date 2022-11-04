@@ -8,8 +8,10 @@ module Command (
 import Data.Maybe (listToMaybe)
 import Value (Value)
 import Function (Function (..), bind, applyFully)
-import Modifier (Modifier, modify)
+import Modifier (modify)
 import State (State (..), Stack, emptyState)
+import qualified BuiltinFunction as BF
+import qualified BuiltinModifier as BM
 
 -- A Command represents the change to the program state caused by a single
 -- token of the program
@@ -19,8 +21,8 @@ import State (State (..), Stack, emptyState)
 --  BindArg: Bind one of the argument values to the topmost Function
 --  StackCmd: Modify the Stack in some way
 data Command =
-  PushFn Function |
-  ModifyFn Modifier |
+  PushFn BF.BuiltinFunction |
+  ModifyFn BM.BuiltinModifier |
   BindVal Value |
   BindArg Int |
   StackCmd (Stack -> Stack)
@@ -36,9 +38,9 @@ data Command =
 -- Value to the arguments list
 executeCommand :: State -> Command -> State
 executeCommand state@State{stack} (PushFn f) =
-  state{stack = f : stack}
+  state{stack = BF.implementation f : stack}
 executeCommand state@State{stack} (ModifyFn m) =
-  state{stack = modify stack m}
+  state{stack = modify stack (BM.implementation m)}
 executeCommand state@State{stack} (StackCmd cmd) =
   state{stack = cmd stack}
 executeCommand state@State{arguments} (BindArg n) =

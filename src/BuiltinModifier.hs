@@ -1,9 +1,9 @@
-module BuiltinModifiers (
-  modifiers
+module BuiltinModifier (
+  BuiltinModifier (..),
+  implementation
 ) where
 
 import Data.List (unfoldr)
-import qualified Data.Map as Map
 import Value (Value (..), listOrSingleton, valToBool)
 import Function (
   Function (..),
@@ -20,8 +20,51 @@ import Function (
   dyadic
   )
 import Modifier (Modifier (..))
-import BuiltinFunctions (windows)
-import qualified BuiltinFunctions as Builtin
+import BuiltinFunction (windows)
+import qualified BuiltinFunction as BF
+
+-- Built-in modifiers are represented by the BuiltinModifier type
+data BuiltinModifier = And
+                     | Branch
+                     | Compose
+                     | Compose3
+                     | Compose4
+                     | Dropwhile
+                     | Fixiter
+                     | Fixpoint
+                     | Flatmap
+                     | Flip
+                     | Foldl
+                     | Foldl1
+                     | Foldr
+                     | Foldr1
+                     | Fork
+                     | Hook
+                     | If
+                     | Invariant
+                     | Iterate
+                     | Lmap
+                     | Mapwindows
+                     | Mapzip
+                     | Not
+                     | Or
+                     | Over
+                     | Pair
+                     | Rcompose
+                     | Rcompose3
+                     | Rmap
+                     | Rotate
+                     | Scanl
+                     | Scanl1
+                     | Scanr
+                     | Scanr1
+                     | Self
+                     | Selftable
+                     | Table
+                     | Takewhile
+                     | Until
+                     | While
+                     deriving (Show, Read)
 
 -- Compose two Functions
 -- This is merely an alias for the binary operator of the Function semigroup
@@ -371,52 +414,50 @@ foldr1' f l
 modTakeWhile :: Function -> Function
 modTakeWhile f = monadic $ List . takeWhile' f . listOrSingleton
 
--- The built-in modifiers are stored in a Map from names to Modifiers
-modifiers :: Map.Map String Modifier
-modifiers = Map.fromList [
+-- Given a BuiltinModifier, return the Modifier that it represents
+implementation :: BuiltinModifier -> Modifier
+implementation m = case m of
   --- 1-modifiers ---
-  ("dropwhile", Modifier1 (\f -> monadic (List . dropWhile' f . listOrSingleton))),
-  ("fixiter", Modifier1 fixiter),
-  ("fixpoint", Modifier1 fixpoint),
-  ("flatmap", Modifier1 (\f -> Builtin.fnFlatten <> mapZipping f)),
-  ("flip", Modifier1 flipArgs),
-  ("foldl", Modifier1 (\f -> dyadic (\x ys -> foldl' f x $ listOrSingleton ys))),
-  ("foldl1", Modifier1 (\f -> monadic (\xs -> foldl1' f $ listOrSingleton xs))),
-  ("foldr", Modifier1 (\f -> dyadic (\x ys -> foldr' f x $ listOrSingleton ys))),
-  ("foldr1", Modifier1 (\f -> monadic (\xs -> foldr1' f $ listOrSingleton xs))),
-  ("invariant", Modifier1 (\f -> hook Builtin.fnSame f)),
-  ("iterate", Modifier1 iterate'),
-  ("lmap", Modifier1 mapLeft),
-  ("map", Modifier1 mapZipping),
-  ("mapwindows", Modifier1 mapWindows),
-  ("not", Modifier1 (Builtin.fnNot <>)),
-  ("rmap", Modifier1 mapRight),
-  ("rotate", Modifier1 rotateArgs),
-  ("scanl", Modifier1 (\f -> dyadic (\x ys -> List $ scanl' f x $ listOrSingleton ys))),
-  ("scanl1", Modifier1 (\f -> monadic (\xs -> List $ scanl1' f $ listOrSingleton xs))),
-  ("scanr", Modifier1 (\f -> dyadic (\x ys -> List $ scanr' f x $ listOrSingleton ys))),
-  ("scanr1", Modifier1 (\f -> monadic (\xs -> List $ scanr1' f $ listOrSingleton xs))),
-  ("self", Modifier1 $ convertArity 1),
-  ("selftable", Modifier1 $ convertArity 1 . table),
-  ("table", Modifier1 table),
-  ("takewhile", Modifier1 modTakeWhile),
-  ("zipwith", Modifier1 mapZipping),  -- Alias for map
+  Dropwhile -> Modifier1 (\f -> monadic (List . dropWhile' f . listOrSingleton))
+  Fixiter -> Modifier1 fixiter
+  Fixpoint -> Modifier1 fixpoint
+  Flatmap -> Modifier1 (\f -> BF.fnFlatten <> mapZipping f)
+  Flip -> Modifier1 flipArgs
+  Foldl -> Modifier1 (\f -> dyadic (\x ys -> foldl' f x $ listOrSingleton ys))
+  Foldl1 -> Modifier1 (\f -> monadic (\xs -> foldl1' f $ listOrSingleton xs))
+  Foldr -> Modifier1 (\f -> dyadic (\x ys -> foldr' f x $ listOrSingleton ys))
+  Foldr1 -> Modifier1 (\f -> monadic (\xs -> foldr1' f $ listOrSingleton xs))
+  Invariant -> Modifier1 (\f -> hook BF.fnSame f)
+  Iterate -> Modifier1 iterate'
+  Lmap -> Modifier1 mapLeft
+  Mapzip -> Modifier1 mapZipping
+  Mapwindows -> Modifier1 mapWindows
+  Not -> Modifier1 (BF.fnNot <>)
+  Rmap -> Modifier1 mapRight
+  Rotate -> Modifier1 rotateArgs
+  Scanl -> Modifier1 (\f -> dyadic (\x ys -> List $ scanl' f x $ listOrSingleton ys))
+  Scanl1 -> Modifier1 (\f -> monadic (\xs -> List $ scanl1' f $ listOrSingleton xs))
+  Scanr -> Modifier1 (\f -> dyadic (\x ys -> List $ scanr' f x $ listOrSingleton ys))
+  Scanr1 -> Modifier1 (\f -> monadic (\xs -> List $ scanr1' f $ listOrSingleton xs))
+  Self -> Modifier1 $ convertArity 1
+  Selftable -> Modifier1 $ convertArity 1 . table
+  Table -> Modifier1 table
+  Takewhile -> Modifier1 modTakeWhile
   --- 2-modifiers ---
-  ("and", Modifier2 (\f g -> ifThenElse f g f)),
-  ("compose", Modifier2 compose2),
-  ("hook", Modifier2 hook),
-  ("or", Modifier2 (\f g -> ifThenElse f f g)),
-  ("over", Modifier2 over),
-  ("pair", Modifier2 (\f g -> hook (Builtin.fnPair <> f) g)),
-  ("rcompose", Modifier2 rcompose2),
-  ("until", Modifier2 (\f g -> modTakeWhile (Builtin.fnNot <> g) <> iterate' f)),
-  ("while", Modifier2 (\f g -> modTakeWhile g <> iterate' f)),
+  And -> Modifier2 (\f g -> ifThenElse f g f)
+  Compose -> Modifier2 compose2
+  Hook -> Modifier2 hook
+  Or -> Modifier2 (\f g -> ifThenElse f f g)
+  Over -> Modifier2 over
+  Pair -> Modifier2 (\f g -> hook (BF.fnPair <> f) g)
+  Rcompose -> Modifier2 rcompose2
+  Until -> Modifier2 (\f g -> modTakeWhile (BF.fnNot <> g) <> iterate' f)
+  While -> Modifier2 (\f g -> modTakeWhile g <> iterate' f)
   --- 3-modifiers ---
-  ("branch", Modifier3 (\f g h -> rcompose2 (f <> g) h)),
-  ("compose3", Modifier3 compose3),
-  ("fork", Modifier3 (\f g h -> hook (f <> g) h)),
-  ("if", Modifier3 ifThenElse),
-  ("rcompose3", Modifier3 rcompose3),
+  Branch -> Modifier3 (\f g h -> rcompose2 (f <> g) h)
+  Compose3 -> Modifier3 compose3
+  Fork -> Modifier3 (\f g h -> hook (f <> g) h)
+  If -> Modifier3 ifThenElse
+  Rcompose3 -> Modifier3 rcompose3
   --- 4-modifiers ---
-  ("compose4", Modifier4 compose4)
-  ]
+  Compose4 -> Modifier4 compose4

@@ -1,10 +1,11 @@
-module BuiltinFunctions (
+module BuiltinFunction (
+  BuiltinFunction (..),
   windows,
-  builtins,
   fnFlatten,
   fnNot,
   fnPair,
-  fnSame
+  fnSame,
+  implementation
 ) where
 
 import Data.List (
@@ -20,7 +21,6 @@ import Data.List (
   genericIndex,
   genericReplicate
   )
-import qualified Data.Map as Map
 import Value (
   Value (..),
   ScalarValue (..),
@@ -59,6 +59,90 @@ import Function (
   numToListDyad,
   numAndListDyad
   )
+
+-- Built-in functions are represented by the BuiltinFunction type
+data BuiltinFunction = Abs
+                     | All
+                     | Any
+                     | At
+                     | AtCycle
+                     | Chunks
+                     | Compare
+                     | Concat
+                     | Cons
+                     | ConsFalsey
+                     | Consr
+                     | Const
+                     | Cycle
+                     | Dec
+                     | Depth
+                     | Double
+                     | Drop
+                     | Equal
+                     | Flatten
+                     | FlattenAll
+                     | From0
+                     | From1
+                     | FromBase
+                     | Greater
+                     | GreaterEqual
+                     | Halve
+                     | Head
+                     | IDiv
+                     | IFrom0
+                     | IFrom1
+                     | IRange
+                     | Id
+                     | Inc
+                     | Indices
+                     | Init
+                     | Inits
+                     | Interleave
+                     | Last
+                     | Length
+                     | Less
+                     | LessEqual
+                     | Lines
+                     | Minus
+                     | Mod
+                     | Neg
+                     | Negative
+                     | Not
+                     | NotEqual
+                     | NotSame
+                     | Nub
+                     | Pair
+                     | Parity
+                     | Partition
+                     | Plus
+                     | Positive
+                     | Pow
+                     | Product
+                     | Quartet
+                     | Range
+                     | RectDepth
+                     | Repeat
+                     | Reverse
+                     | Rotate
+                     | Same
+                     | Show
+                     | Sign
+                     | Sort
+                     | Square
+                     | Stringify
+                     | Sum
+                     | Tail
+                     | Tails
+                     | Take
+                     | TakeCycle
+                     | Times
+                     | ToBase
+                     | Trio
+                     | TruthyIndices
+                     | Windows
+                     | Wrap
+                     | Zero
+                     deriving (Show, Read)
 
 -- Convert True to 1 and False to 0
 boolToInteger :: Bool -> Integer
@@ -227,99 +311,91 @@ fnPair = dyadic (\x y -> List [x, y])
 fnSame :: Function
 fnSame = dyadic (\x y -> boolToVal $ x == y)
 
--- The built-in functions are stored in a Map from names to Functions
-builtins :: Map.Map String Function
-builtins = Map.fromList [
+-- Given a BuiltinFunction, return the Function that it represents
+implementation :: BuiltinFunction -> Function
+implementation f = case f of
   --- Arity 1 ---
-  ("Abs", numberMathMonad abs),
-  ("All?", monadic $ boolToVal . all valToBool . listOrSingleton),
-  ("Any?", monadic $ boolToVal . any valToBool . listOrSingleton),
-  ("ConsFalsey", monadic $ List . consFalsey . listOrSingleton),
-  ("Cycle", monadic $ List . cycle . listOrSingleton),
-  ("Dec", charMathMonad pred),
-  ("Depth", monadic $ Number . depth),
-  ("Double", numberMathMonad (* 2)),
-  ("Falsey?", fnNot),   -- Alias for Not
-  ("Flatten", fnFlatten),
-  ("FlattenAll", monadic $ List . map scalarToVal . flattenAll . listOrSingleton),
-  ("From0", monadic $ mapOverList $ exclRange (ScalarNumber 0)),
-  ("From1", monadic $ mapOverList $ exclRange (ScalarNumber 1)),
-  ("Halve", numberMathMonad (`div` 2)),
-  ("Head", monadic $ head . listOrSingleton),
-  ("IFrom0", monadic $ mapOverList $ inclRange (ScalarNumber 0)),
-  ("IFrom1", monadic $ mapOverList $ inclRange (ScalarNumber 1)),
-  ("Id", monadic id),
-  ("Inc", charMathMonad succ),
-  ("Indices", monadic (\l -> List [Number i | (i, _) <- zip [0..] $ listOrSingleton l])),
-  ("Init", monadic $ List . init' . listOrSingleton),
-  ("Inits", monadic $ List . map List . inits . listOrSingleton),
-  ("Last", monadic $ last . listOrSingleton),
-  ("Length", monadic (\l -> Number $ genericLength $ listOrString l)),
-  ("Lines", monadic linesUnlines),
-  ("Neg", numberMathMonad (0 -)),
-  ("Negative?", numberMathMonad $ boolToInteger . (< 0)),
-  ("Not", fnNot),
-  ("Nub", monadic $ List . nub . listOrSingleton),
-  ("Odd?", numberMathMonad (`mod` 2)),   -- Alias for Parity
-  ("Parity", numberMathMonad (`mod` 2)),
-  ("Positive?", numberMathMonad $ boolToInteger . (> 0)),
-  ("Prefixes", monadic $ List . map List . inits . listOrSingleton),   -- Alias for Inits
-  ("Product", monadic $ Number . product . toIntegerList),
-  ("RectDepth", monadic $ Number . rectangularDepth),
-  ("Reverse", monadic $ List . reverse . listOrSingleton),
-  ("Show", monadic $ stringToVal . show),
-  ("Sign", numberMathMonad signum),
-  ("Sort", monadic $ List . sort . listOrSingleton),
-  ("Square", numberMathMonad (\x -> x * x)),
-  ("Stringify", monadic $ stringToVal . valToString),
-  ("Suffixes", monadic $ List . map List . tails . listOrSingleton),   -- Alias for Tails
-  ("Sum", monadic $ Number . sum . toIntegerList),
-  ("Tail", monadic $ List . drop 1 . listOrSingleton),
-  ("Tails", monadic $ List . map List . tails . listOrSingleton),
-  ("TruthyIndices", monadic (\l -> List [Number i | (i, x) <- zip [0..] $ listOrSingleton l, valToBool x])),
-  ("Unique", monadic $ List . nub . listOrSingleton),   -- Alias for Nub
-  ("Wrap", monadic (\x -> List [x])),
-  ("Zero?", numberMathMonad $ boolToInteger . (== 0)),
+  Abs -> numberMathMonad abs
+  All -> monadic $ boolToVal . all valToBool . listOrSingleton
+  Any -> monadic $ boolToVal . any valToBool . listOrSingleton
+  ConsFalsey -> monadic $ List . consFalsey . listOrSingleton
+  Cycle -> monadic $ List . cycle . listOrSingleton
+  Dec -> charMathMonad pred
+  Depth -> monadic $ Number . depth
+  Double -> numberMathMonad (* 2)
+  Flatten -> fnFlatten
+  FlattenAll -> monadic $ List . map scalarToVal . flattenAll . listOrSingleton
+  From0 -> monadic $ mapOverList $ exclRange (ScalarNumber 0)
+  From1 -> monadic $ mapOverList $ exclRange (ScalarNumber 1)
+  Halve -> numberMathMonad (`div` 2)
+  Head -> monadic $ head . listOrSingleton
+  IFrom0 -> monadic $ mapOverList $ inclRange (ScalarNumber 0)
+  IFrom1 -> monadic $ mapOverList $ inclRange (ScalarNumber 1)
+  Id -> monadic id
+  Inc -> charMathMonad succ
+  Indices -> monadic (\l -> List [Number i | (i, _) <- zip [0..] $ listOrSingleton l])
+  Init -> monadic $ List . init' . listOrSingleton
+  Inits -> monadic $ List . map List . inits . listOrSingleton
+  Last -> monadic $ last . listOrSingleton
+  Length -> monadic (\l -> Number $ genericLength $ listOrString l)
+  Lines -> monadic linesUnlines
+  Neg -> numberMathMonad (0 -)
+  Negative -> numberMathMonad $ boolToInteger . (< 0)
+  Not -> fnNot
+  Nub -> monadic $ List . nub . listOrSingleton
+  Parity -> numberMathMonad (`mod` 2)
+  Positive -> numberMathMonad $ boolToInteger . (> 0)
+  Product -> monadic $ Number . product . toIntegerList
+  RectDepth -> monadic $ Number . rectangularDepth
+  Reverse -> monadic $ List . reverse . listOrSingleton
+  Show -> monadic $ stringToVal . show
+  Sign -> numberMathMonad signum
+  Sort -> monadic $ List . sort . listOrSingleton
+  Square -> numberMathMonad (\x -> x * x)
+  Stringify -> monadic $ stringToVal . valToString
+  Sum -> monadic $ Number . sum . toIntegerList
+  Tail -> monadic $ List . drop 1 . listOrSingleton
+  Tails -> monadic $ List . map List . tails . listOrSingleton
+  TruthyIndices -> monadic (\l -> List [Number i | (i, x) <- zip [0..] $ listOrSingleton l, valToBool x])
+  Wrap -> monadic (\x -> List [x])
+  Zero -> numberMathMonad $ boolToInteger . (== 0)
   --- Arity 2 ---
-  ("At", numAndListDyad $ flip genericIndex),
-  ("AtCycle", numAndListDyad $ flip indexCycle),
-  ("Chunk", dyadic (\x y -> List $ map List $ chunks (cycle $ toIntegerList x) (listOrSingleton y))),   -- Alias for Chunks
-  ("Chunks", dyadic (\x y -> List $ map List $ chunks (cycle $ toIntegerList x) (listOrSingleton y))),
-  ("Compare", dyadic (\x y -> orderingToVal $ x `compare` y)),
-  ("Concat", dyadic (\x y -> List $ listOrSingleton x ++ listOrSingleton y)),
-  ("Cons", dyadic (\x y -> List $ x : listOrSingleton y)),
-  ("Consr", dyadic (\x y -> List $ listOrSingleton y ++ [x])),
-  ("Const", dyadic const),
-  ("Different?", dyadic (\x y -> boolToVal $ x /= y)),  -- Alias for NotSame?
-  ("Drop", numAndListDyad $ (List .) . drop'),
-  ("Equal?", numberMathDyad $ (boolToInteger .) . (==)),
-  ("FromBase", numAndListDyad valsFromBase),
-  ("Greater?", numberMathDyad $ (boolToInteger .) . (>)),
-  ("GreaterEqual?", numberMathDyad $ (boolToInteger .) . (>=)),
-  ("IDiv", numberMathDyad $ flip div),
-  ("IRange", dyadic $ mapOverLists inclRange),
-  ("Interleave", dyadic (\x y -> List $ interleave (listOrSingleton x) (listOrSingleton y))),
-  ("Less?", numberMathDyad $ (boolToInteger .) . (<)),
-  ("LessEqual?", numberMathDyad $ (boolToInteger .) . (<=)),
-  ("Minus", charMathDyad $ flip (-)),
-  ("Mod", numberMathDyad $ flip mod),
-  ("NotEqual?", numberMathDyad $ (boolToInteger .) . (/=)),
-  ("NotSame?", dyadic (\x y -> boolToVal $ x /= y)),
-  ("Pair", fnPair),
-  ("Partition", numAndListDyad $ ((List . map List) .) . partition),
-  ("Plus", charMathDyad (+)),
-  ("Pow", numberMathDyad (^)),
-  ("Range", dyadic $ mapOverLists exclRange),
-  ("Repeat", numAndListDyad $ (List .) . repeat'),
-  ("Rotate", numAndListDyad $ (List .) . rotate),
-  ("Same?", fnSame),
-  ("Take", numAndListDyad $ (List .) . take'),
-  ("TakeCycle", numAndListDyad $ (List .) . takeCycle),
-  ("Times", charMathDyad (*)),
-  ("ToBase", numToListDyad toBase),
-  ("Windows", numAndListDyad (\n l -> List $ map List $ windows n l)),
+  At -> numAndListDyad $ flip genericIndex
+  AtCycle -> numAndListDyad $ flip indexCycle
+  Chunks -> dyadic (\x y -> List $ map List $ chunks (cycle $ toIntegerList x) (listOrSingleton y))
+  Compare -> dyadic (\x y -> orderingToVal $ x `compare` y)
+  Concat -> dyadic (\x y -> List $ listOrSingleton x ++ listOrSingleton y)
+  Cons -> dyadic (\x y -> List $ x : listOrSingleton y)
+  Consr -> dyadic (\x y -> List $ listOrSingleton y ++ [x])
+  Const -> dyadic const
+  Drop -> numAndListDyad $ (List .) . drop'
+  Equal -> numberMathDyad $ (boolToInteger .) . (==)
+  FromBase -> numAndListDyad valsFromBase
+  Greater -> numberMathDyad $ (boolToInteger .) . (>)
+  GreaterEqual -> numberMathDyad $ (boolToInteger .) . (>=)
+  IDiv -> numberMathDyad $ flip div
+  IRange -> dyadic $ mapOverLists inclRange
+  Interleave -> dyadic (\x y -> List $ interleave (listOrSingleton x) (listOrSingleton y))
+  Less -> numberMathDyad $ (boolToInteger .) . (<)
+  LessEqual -> numberMathDyad $ (boolToInteger .) . (<=)
+  Minus -> charMathDyad $ flip (-)
+  Mod -> numberMathDyad $ flip mod
+  NotEqual -> numberMathDyad $ (boolToInteger .) . (/=)
+  NotSame -> dyadic (\x y -> boolToVal $ x /= y)
+  Pair -> fnPair
+  Partition -> numAndListDyad $ ((List . map List) .) . partition
+  Plus -> charMathDyad (+)
+  Pow -> numberMathDyad (^)
+  Range -> dyadic $ mapOverLists exclRange
+  Repeat -> numAndListDyad $ (List .) . repeat'
+  Rotate -> numAndListDyad $ (List .) . rotate
+  Same -> fnSame
+  Take -> numAndListDyad $ (List .) . take'
+  TakeCycle -> numAndListDyad $ (List .) . takeCycle
+  Times -> charMathDyad (*)
+  ToBase -> numToListDyad toBase
+  Windows -> numAndListDyad (\n l -> List $ map List $ windows n l)
   --- Arity 3 ---
-  ("Trio", triadic (\x y z -> List [x, y, z])),
+  Trio -> triadic (\x y z -> List [x, y, z])
   --- Arity 4 ---
-  ("Quartet", tetradic (\x y z w -> List [x, y, z, w]))
-  ]
+  Quartet -> tetradic (\x y z w -> List [x, y, z, w])

@@ -25,14 +25,14 @@ source-repository head
 
 library
   exposed-modules:
-      BuiltinFunctions
-      BuiltinModifiers
+      BuiltinFunction
+      BuiltinModifier
       Command
       Function
       Modifier
-      Parse
       State
       Value
+      VerboseParser
   other-modules:
       Paths_funstack
   hs-source-dirs:

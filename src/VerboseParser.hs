@@ -1,30 +1,66 @@
-module Parse (
+module VerboseParser (
   parse,
   parseArgs
 ) where
 
-import Data.Char (isDigit, isUpper, isLower)
+import Data.Char (isDigit, isUpper, isLower, toUpper)
 import qualified Data.Map as Map
 import Text.Read (readMaybe)
 import Value (Value (..), chr', stringToVal)
-import Function (Function)
-import Modifier (Modifier)
 import Command (Command (..))
-import BuiltinFunctions (builtins)
-import BuiltinModifiers (modifiers)
+import qualified BuiltinFunction as BF
+import qualified BuiltinModifier as BM
 
--- Parse a string as a builtin function, or Nothing if parsing fails
-toFunction :: String -> Maybe Function
-toFunction s = Map.lookup s builtins
+-- Parse a string as a built-in function, or Nothing if parsing fails
+-- The first several cases are aliases; if none of those match, default to
+-- BuiltinFunction's Read instance
+parseFunction :: String -> Maybe BF.BuiltinFunction
+parseFunction s = case s of
+  "All?" -> Just BF.All
+  "Any?" -> Just BF.Any
+  "Chunk" -> Just BF.Chunks
+  "ChunksOf" -> Just BF.Chunks
+  "Different" -> Just BF.NotSame
+  "Different?" -> Just BF.NotSame
+  "Equal?" -> Just BF.Equal
+  "Falsey" -> Just BF.Not
+  "Falsey?" -> Just BF.Not
+  "Greater?" -> Just BF.Greater
+  "GreaterEqual?" -> Just BF.GreaterEqual
+  "Less?" -> Just BF.Less
+  "LessEqual?" -> Just BF.LessEqual
+  "Mod2" -> Just BF.Parity
+  "Negative?" -> Just BF.Negative
+  "NotEqual?" -> Just BF.NotEqual
+  "NotSame?" -> Just BF.NotSame
+  "Odd" -> Just BF.Parity
+  "Odd?" -> Just BF.Parity
+  "Positive?" -> Just BF.Positive
+  "Prefixes" -> Just BF.Inits
+  "Same?" -> Just BF.Same
+  "Suffixes" -> Just BF.Tails
+  "Unique" -> Just BF.Nub
+  "Uniquify" -> Just BF.Nub
+  "Zero?" -> Just BF.Zero
+  _ -> readMaybe s
 
--- Parse a string as a builtin modifier, or Nothing if parsing fails
-toModifier :: String -> Maybe Modifier
-toModifier s = Map.lookup s modifiers
+-- Parse a string as a built-in modifier, or Nothing if parsing fails
+-- The first several cases are aliases; if none of those match, default to
+-- BuiltinModifier's Read instance
+parseModifier :: String -> Maybe BM.BuiltinModifier
+parseModifier s = case s of
+  "map" -> Just BM.Mapzip
+  "mapflat" -> Just BM.Flatmap
+  "mapflatten" -> Just BM.Flatmap
+  "zipwith" -> Just BM.Mapzip
+  _ -> readMaybe $ capitalize s
+  where
+    capitalize (c : cs) = toUpper c : cs
+    capitalize "" = ""
 
 {-
 -- Parse a string as a stack command, or Nothing if parsing fails
-toStackCommand :: String -> Maybe (Stack -> Stack)
-toStackCommand s = Map.lookup s stackCommands
+parseStackCommand :: String -> Maybe (Stack -> Stack)
 -}
 
 -- Constants that aren't number/character/string/list literals
@@ -49,8 +85,8 @@ specialValues = Map.fromList [
 --   surrounded by ''
 --  String, if it starts with "
 --  Number, if it starts with a digit or minus sign
-toLiteral :: String -> Maybe Value
-toLiteral s
+parseLiteral :: String -> Maybe Value
+parseLiteral s
   | Map.member s specialValues = Map.lookup s specialValues
   | ('\\' : n) <- s = (Character . chr') <$> readMaybe n
   | ('\'' : c : "'") <- s = Just $ Character c
@@ -72,18 +108,18 @@ maybeToEither message Nothing = Left message
 --  Starts with !: stack command
 --  Starts with @: argument reference
 --  Otherwise: literal value
-toCommand :: String -> Either String Command
-toCommand "" = Left "Empty token"
-toCommand s = maybeToEither errorMessage command
+parseCommand :: String -> Either String Command
+parseCommand "" = Left "Empty token"
+parseCommand s = maybeToEither errorMessage command
   where
     errorMessage = "While parsing, unrecognized token: " ++ s
     c = head s
     command
-      | isUpper c = PushFn <$> toFunction s
-      | isLower c = ModifyFn <$> toModifier s
---      | c == '!' = StackCmd <$> toStackCommand s
+      | isUpper c = PushFn <$> parseFunction s
+      | isLower c = ModifyFn <$> parseModifier s
+--      | c == '!' = StackCmd <$> parseStackCommand s
       | c == '@' = BindArg <$> readMaybe (tail s)
-      | otherwise = BindVal <$> toLiteral s
+      | otherwise = BindVal <$> parseLiteral s
 
 -- Split a line of code into tokens
 -- For the moment, just split on spaces
@@ -93,7 +129,7 @@ tokenizeLine = words
 
 -- Parse a line of code as a list of Commands
 parseLine :: String -> Either String [Command]
-parseLine = mapM toCommand . tokenizeLine
+parseLine = mapM parseCommand . tokenizeLine
 
 -- Parse a full program as a list of lists of Commands
 parse :: String -> Either String [[Command]]
@@ -101,7 +137,7 @@ parse = mapM parseLine . lines
 
 -- Parse an argument as either a Value or an error message
 parseArg :: String -> Either String Value
-parseArg a = maybeToEither ("Could not parse argument " ++ a) (toLiteral a)
+parseArg a = maybeToEither ("Could not parse argument " ++ a) (parseLiteral a)
 
 -- Parse a list of arguments as a list of Values or an error message
 parseArgs :: [String] -> Either String [Value]
