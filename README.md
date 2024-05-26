@@ -38,19 +38,19 @@ This program takes two arguments, increments each of them, and puts those two re
 
 ## How to run
 
-**Note:** Currently, the interpreter is in a very basic state. Program arguments must be passed as command-line args, and the program itself must be given on stdin. Many important builtins are not implemented yet, the type system needs more work, and some programs cause runtime errors when they should probably do something more useful.
+**Note:** Currently, the interpreter is in a very basic state. Many important builtins are not implemented yet, the parser and the type system need more work, and some programs cause runtime errors when they should probably do something more useful.
+
+The usual way of invoking the FunStack interpreter is to pass the filename of the FunStack program as a command-line argument. The remaining command-line args are parsed as FunStack values and passed as arguments to the program. Calling the interpreter without arguments reads and executes a single-line program from stdin.
 
 An online version of the interpreter is available at [Replit](https://replit.com/@dloscutoff/funstack).
 
-The easiest way to compile and run the interpreter is using the [Haskell Tool Stack](https://docs.haskellstack.org/en/stable/). Follow the instructions at that link to install it; then, in the top level of the FunStack repository, execute `stack build` to compile the code and `stack run` to run it. Here's an example:
+The easiest way to compile and run the interpreter is using the [Haskell Tool Stack](https://docs.haskellstack.org/en/stable/). Follow the instructions at that link to install it; then, in the top level of the FunStack repository, execute `stack build` to compile the code and `stack run` to run it. Here's an example, assuming `test.fs` contains the program `Pair Inc over`:
 
-    C:\Users\DLosc\FunStack>stack run 42 5
-    Pair Inc over
+    C:\Users\DLosc\FunStack>stack run test.fs 42 5
     [43,6]
 
 It is also possible to compile the interpreter using [ghc](https://www.haskell.org/ghc/) directly. You will need to specify the path to the non-main modules using the command-line option `-i`. Here is one possible invocation that creates a `funstack` executable (`funstack.exe` on Windows):
 
     ~/funstack$ ghc -i./src -o funstack app/Main.hs
-    ~/funstack$ ./funstack 42 5
-    Pair Inc over
+    ~/funstack$ ./funstack test.fs 42 5
     [43,6]

@@ -8,6 +8,9 @@ and this project adheres to the
 
 ## Unreleased
 
+### Changed
+- Can now read program from a file
+
 ## 0.0.2 - 2022-11-02
 
 ### Added

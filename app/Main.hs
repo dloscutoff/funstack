@@ -24,8 +24,21 @@ runProgram program args = case runProgram' program args of
   Right result -> putStrLn result
   Left errMessage -> IO.hPutStrLn IO.stderr errMessage
 
+-- Given a list of args, either load the program from the file given in
+-- the first arg, or read it from stdin; return the program and the
+-- remaining args
+loadProgram :: [String] -> IO (String, [String])
+loadProgram (firstArg : remainingArgs) = do
+  -- TODO: test if firstArg is a filename; read from stdin if not
+  program <- readFile firstArg
+  pure (program, remainingArgs)
+loadProgram [] = do
+  putStrLn "Enter your program:"
+  program <- getLine
+  pure (program, [])
+
 main :: IO ()
 main = do
-  program <- getLine
-  args <- Env.getArgs
+  allArgs <- Env.getArgs
+  (program, args) <- loadProgram allArgs
   runProgram program args
