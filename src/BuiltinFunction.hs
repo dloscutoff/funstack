@@ -38,7 +38,7 @@ import Value (
   listOrString,
   sameTypeFalsey,
   depth,
-  rectangularDepth,
+  uniformDepth,
   flattenOnce,
   flattenAll,
   toIntegerList
@@ -120,7 +120,6 @@ data BuiltinFunction = Abs
                      | Product
                      | Quartet
                      | Range
-                     | RectDepth
                      | Repeat
                      | Reverse
                      | Rotate
@@ -139,6 +138,7 @@ data BuiltinFunction = Abs
                      | ToBase
                      | Trio
                      | TruthyIndices
+                     | UniformDepth
                      | Windows
                      | Wrap
                      | Zero
@@ -346,7 +346,6 @@ implementation f = case f of
   Parity -> numberMathMonad (`mod` 2)
   Positive -> numberMathMonad $ boolToInteger . (> 0)
   Product -> monadic $ Number . product . toIntegerList
-  RectDepth -> monadic $ Number . rectangularDepth
   Reverse -> monadic $ List . reverse . listOrSingleton
   Show -> monadic $ stringToVal . show
   Sign -> numberMathMonad signum
@@ -357,6 +356,7 @@ implementation f = case f of
   Tail -> monadic $ List . drop 1 . listOrSingleton
   Tails -> monadic $ List . map List . tails . listOrSingleton
   TruthyIndices -> monadic (\l -> List [Number i | (i, x) <- zip [0..] $ listOrSingleton l, valToBool x])
+  UniformDepth -> monadic $ Number . uniformDepth
   Wrap -> monadic (\x -> List [x])
   Zero -> numberMathMonad $ boolToInteger . (== 0)
   --- Arity 2 ---

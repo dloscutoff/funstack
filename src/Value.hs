@@ -18,7 +18,7 @@ module Value (
   listOrString,
   sameTypeFalsey,
   depth,
-  rectangularDepth,
+  uniformDepth,
   flattenOnce,
   flattenAll,
   toIntegerList
@@ -174,7 +174,7 @@ sameTypeFalsey (List _) = List []
 
 -- Takes a Value and returns its depth:
 --  Depth of a scalar is 0
---  Depth of an empty List is 0
+--  Depth of an empty List is 1
 --  Depth of a nonempty List is 1 plus the depth of its deepest element
 depth :: Value -> Integer
 depth (Number _) = 0
@@ -182,17 +182,17 @@ depth (Character _) = 0
 depth (List []) = 1
 depth (List l) = 1 + maximum (map depth l)
 
--- Takes a Value that is assumed to be either a scalar or a List representing
--- a rectangular array and returns its depth
+-- Takes a Value that is assumed to be either a scalar or a uniformly
+-- deeply nested List and returns its depth
 -- Unlike depth, this function does not get into an infinite loop when given
 -- an infinite List
---  Rectangular depth of a nonempty List is 1 plus the depth of its first
+--  Uniform depth of a nonempty List is 1 plus the depth of its first
 --   element
---  Rectangular depth of an empty List or a scalar is the same as its
+--  Uniform depth of an empty List or a scalar is the same as its
 --   regular depth
-rectangularDepth :: Value -> Integer
-rectangularDepth (List (r : _)) = 1 + rectangularDepth r
-rectangularDepth x = depth x
+uniformDepth :: Value -> Integer
+uniformDepth (List (r : _)) = 1 + uniformDepth r
+uniformDepth x = depth x
 
 -- Take a list of Values; convert Lists to Haskell lists and scalars to
 -- singleton lists, concatenate them all together, and return that list
