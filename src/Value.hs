@@ -24,6 +24,9 @@ module Value (
   toIntegerList
 ) where
 
+import Text.Read (readPrec)
+import Text.ParserCombinators.ReadPrec (choice, (<++))
+
 -- Value is the main data type for values in FunStack:
 --  Number represents an arbitrary-size integer
 --  Character represents a single Unicode character
@@ -43,6 +46,13 @@ instance Show DisplayValue where
   show (AsChar c) = show c
   show (AsString s) = show s
   show (AsList l) = show l
+
+instance Read DisplayValue where
+  readPrec = choice [
+    AsNumber <$> readPrec,
+    AsChar <$> readPrec,
+    (AsList <$> readPrec) <++ (AsString <$> readPrec)
+    ]
 
 -- Given a Char, return its codepoint as an Integer
 ord' :: Char -> Integer
@@ -80,9 +90,20 @@ valToDisplay (List l)
     valToChar (Character c) = c
     valToChar _ = '\0'
 
+-- Convert a DisplayValue to a Value
+displayToVal :: DisplayValue -> Value
+displayToVal (AsNumber n) = Number n
+displayToVal (AsChar c) = Character c
+displayToVal (AsList l) = List l
+displayToVal (AsString s) = stringToVal s
+
 -- To show a Value, convert it to a DisplayValue and show that
 instance Show Value where
   show = show . valToDisplay
+
+-- To read a Value, read a DisplayValue and convert it
+instance Read Value where
+  readPrec = displayToVal <$> readPrec
 
 -- Two Values are equal if they are the same type and their contents are equal
 instance Eq Value where

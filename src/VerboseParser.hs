@@ -3,10 +3,10 @@ module VerboseParser (
   parseArgs
 ) where
 
-import Data.Char (isDigit, isUpper, isLower, toUpper)
+import Data.Char (isUpper, isLower, toUpper)
 import qualified Data.Map as Map
 import Text.Read (readMaybe)
-import Value (Value (..), chr', stringToVal)
+import Value (Value (..), chr')
 import Command (Command (..))
 import qualified BuiltinFunction as BF
 import qualified BuiltinModifier as BM
@@ -81,19 +81,13 @@ specialValues = Map.fromList [
 
 -- Parse a string as a literal Value, or Nothing if parsing fails
 --  Special value, if it's in the list of special values
---  Character, if it's \ followed by a char code or any single character
---   surrounded by ''
---  String, if it starts with "
---  Number, if it starts with a digit or minus sign
+--  Character, if it's \ followed by a decimal char code
+--  Otherwise, fall back on the Read instance of Value
 parseLiteral :: String -> Maybe Value
 parseLiteral s
   | Map.member s specialValues = Map.lookup s specialValues
   | ('\\' : n) <- s = (Character . chr') <$> readMaybe n
-  | ('\'' : c : "'") <- s = Just $ Character c
-  | head s == '"' = stringToVal <$> readMaybe s
-  | (all isDigit s ||
-     head s == '-' && all isDigit (tail s)) = Number <$> readMaybe s
-  | otherwise = Nothing
+  | otherwise = readMaybe s
 
 -- Given an error message and a Maybe, return an Either String
 --  If the second argument is Just x, return Right x
@@ -137,7 +131,7 @@ parse = mapM parseLine . lines
 
 -- Parse an argument as either a Value or an error message
 parseArg :: String -> Either String Value
-parseArg a = maybeToEither ("Could not parse argument " ++ a) (parseLiteral a)
+parseArg a = maybeToEither ("Could not parse argument " ++ a) (readMaybe a)
 
 -- Parse a list of arguments as a list of Values or an error message
 parseArgs :: [String] -> Either String [Value]
