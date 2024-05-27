@@ -295,7 +295,7 @@ linesUnlines = linesUnlines' . valToDisplay
     linesUnlines' (AsString s) = List $ map stringToVal $ lines s
     linesUnlines' (AsList l) = stringToVal $ unlines $ map valToString l
     linesUnlines' (AsChar c) = List $ map stringToVal $ lines [c]
-    linesUnlines' (AsNumber n) = List $ map (List . map Character) [show n]
+    linesUnlines' (AsNumber n) = List $ map stringToVal $ lines $ show n
 
 -- The following builtins are used elsewhere besides just being included in
 -- the builtins Map, so they are defined separately
