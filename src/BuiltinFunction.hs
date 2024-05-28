@@ -120,6 +120,7 @@ data BuiltinFunction = Abs
                      | Product
                      | Quartet
                      | Range
+                     | Read
                      | Repeat
                      | Reverse
                      | Rotate
@@ -346,6 +347,7 @@ implementation f = case f of
   Parity -> numberMathMonad (`mod` 2)
   Positive -> numberMathMonad $ boolToInteger . (> 0)
   Product -> monadic $ Number . product . toIntegerList
+  Read -> monadic $ read . valToString
   Reverse -> monadic $ List . reverse . listOrSingleton
   Show -> monadic $ stringToVal . show
   Sign -> numberMathMonad signum
