@@ -32,14 +32,23 @@ import Text.ParserCombinators.ReadPrec (choice, (<++))
 --  Character represents a single Unicode character
 --  List represents a list containing other Values (potentially of
 --   different types, including other Lists)
-data Value = Number Integer | Character Char | List [Value]
+data Value =
+  Number Integer |
+  Character Char |
+  List [Value]
 
 -- ScalarValue is a helper type that does not include lists
-data ScalarValue = ScalarNumber Integer | ScalarChar Char
+data ScalarValue =
+  ScalarNumber Integer |
+  ScalarChar Char
 
 -- DisplayValue is a helper type that distinguishes between strings (Lists
 -- of Characters) and other Lists to facilitate displaying them differently
-data DisplayValue = AsNumber Integer | AsChar Char | AsString String | AsList [Value]
+data DisplayValue =
+  AsNumber Integer |
+  AsChar Char |
+  AsString String |
+  AsList [Value]
 
 instance Show DisplayValue where
   show (AsNumber n) = show n

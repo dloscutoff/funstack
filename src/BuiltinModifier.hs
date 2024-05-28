@@ -24,47 +24,48 @@ import BuiltinFunction (windows)
 import qualified BuiltinFunction as BF
 
 -- Built-in modifiers are represented by the BuiltinModifier type
-data BuiltinModifier = And
-                     | Branch
-                     | Compose
-                     | Compose3
-                     | Compose4
-                     | Dropwhile
-                     | Fixiter
-                     | Fixpoint
-                     | Flatmap
-                     | Flip
-                     | Foldl
-                     | Foldl1
-                     | Foldr
-                     | Foldr1
-                     | Fork
-                     | Hook
-                     | If
-                     | Invariant
-                     | Iterate
-                     | Lmap
-                     | Mapwindows
-                     | Mapzip
-                     | Not
-                     | Or
-                     | Over
-                     | Pair
-                     | Rcompose
-                     | Rcompose3
-                     | Rmap
-                     | Rotate
-                     | Scanl
-                     | Scanl1
-                     | Scanr
-                     | Scanr1
-                     | Self
-                     | Selftable
-                     | Table
-                     | Takewhile
-                     | Until
-                     | While
-                     deriving (Show, Read)
+data BuiltinModifier =
+  And |
+  Branch |
+  Compose |
+  Compose3 |
+  Compose4 |
+  Dropwhile |
+  Fixiter |
+  Fixpoint |
+  Flatmap |
+  Flip |
+  Foldl |
+  Foldl1 |
+  Foldr |
+  Foldr1 |
+  Fork |
+  Hook |
+  If |
+  Invariant |
+  Iterate |
+  Lmap |
+  Mapwindows |
+  Mapzip |
+  Not |
+  Or |
+  Over |
+  Pair |
+  Rcompose |
+  Rcompose3 |
+  Rmap |
+  Rotate |
+  Scanl |
+  Scanl1 |
+  Scanr |
+  Scanr1 |
+  Self |
+  Selftable |
+  Table |
+  Takewhile |
+  Until |
+  While
+  deriving (Show, Read)
 
 -- Compose two Functions
 -- This is merely an alias for the binary operator of the Function semigroup

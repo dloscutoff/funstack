@@ -42,7 +42,9 @@ type Arity = Int
 --   representing a 0-arity function that returns a constant
 --  Function represents a function with arity higher than 0 that can be
 --   bound to a Value, resulting in a new Function (possibly a Constant)
-data Function = Constant Value | Function Arity (Value -> Function)
+data Function =
+  Constant Value |
+  Function Arity (Value -> Function)
 
 -- Return the arity of any Function, giving 0 for a Constant
 arity :: Function -> Arity
