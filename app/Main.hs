@@ -2,7 +2,7 @@ module Main (main) where
 
 import qualified System.IO as IO
 import qualified System.Environment as Env
-import VerboseParser (parse, parseArgs)
+import VerboseParser (parseProgram, parseArgs)
 import Command (executeProgram)
 
 -- Given a program and list of args, parse both and execute the program
@@ -10,7 +10,7 @@ import Command (executeProgram)
 --  Otherwise, show and return the main function's return value
 runProgram' :: String -> [String] -> Either String String
 runProgram' program args = do
-  parsedProgram <- parse program
+  parsedProgram <- parseProgram program
   parsedArgs <- parseArgs args
   case executeProgram parsedProgram parsedArgs of
     Just x -> Right $ show x

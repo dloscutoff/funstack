@@ -41,6 +41,7 @@ library
   build-depends:
       base >=4.7 && <5
     , containers
+    , ghc
   default-language: Haskell2010
 
 executable funstack-exe
@@ -54,6 +55,7 @@ executable funstack-exe
       base >=4.7 && <5
     , containers
     , funstack
+    , ghc
   default-language: Haskell2010
 
 test-suite funstack-test
@@ -68,4 +70,5 @@ test-suite funstack-test
       base >=4.7 && <5
     , containers
     , funstack
+    , ghc
   default-language: Haskell2010
