@@ -7,6 +7,7 @@ import Data.Char (isUpper, isLower, isDigit, isSpace)
 import qualified Data.Map as Map
 import Text.Read (readPrec, readMaybe)
 import Text.ParserCombinators.ReadPrec (
+  ReadPrec,
   lift,
   get,
   (<++),
@@ -88,6 +89,24 @@ specialValues = Map.fromList [
   ("#Z", List $ map Number $ [1..] >>= (\n -> [1-n, n]))
   ]
 
+-- Helper ReadPrec parsers for the Read instances below:
+
+-- Skip over a string of as many whitespace characters as possible
+skipWhitespace :: ReadPrec ()
+skipWhitespace = lift ReadP.skipSpaces
+
+-- Match a string of as many non-whitespace characters as possible
+getNonSpaceString :: ReadPrec String
+getNonSpaceString = lift $ ReadP.munch1 $ not . isSpace
+
+-- Match a string of as many digits as possible
+getDigitString :: ReadPrec String
+getDigitString = lift $ ReadP.munch1 isDigit
+
+-- Match the rest of the string unconditionally
+getWholeString :: ReadPrec String
+getWholeString = lift $ ReadP.munch $ const True
+
 -- To read a Token, read a built-in function or modifier, an argument
 -- reference, a literal, a function or modifier alias, or a special value
 instance Read Token where
@@ -101,10 +120,6 @@ instance Read Token where
     readModifierAlias,
     readSpecialValue
     ] where
-      -- Match a string of as many digits as possible
-      getDigitString = lift $ ReadP.munch1 isDigit
-      -- Match a string of as many non-whitespace characters as possible
-      getNonSpaceString = lift $ ReadP.munch1 $ not . isSpace
       -- Match a built-in function's name exactly
       readFunction = do
         name@(firstChar : _) <- getNonSpaceString
@@ -168,12 +183,6 @@ instance Read TokenList where
       readNextToken <++ badTokenError,
       endOfInput
       ] where
-        -- Skip over a string of as many whitespace characters as possible
-        skipWhitespace = lift ReadP.skipSpaces
-        -- Match a string of as many non-whitespace characters as possible
-        getNonSpaceString = lift $ ReadP.munch1 $ not . isSpace
-        -- Match the rest of the string unconditionally
-        getWholeString = lift $ ReadP.munch $ const True
         -- Read a token; recursively read the rest of the token list, and
         -- either prepend this token to the list or pass through the error
         -- message
