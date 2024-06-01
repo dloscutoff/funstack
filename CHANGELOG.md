@@ -8,8 +8,20 @@ and this project adheres to the
 
 ## Unreleased
 
+### Added
+- Single-line comment syntax starting with ;
+- Builtins: Read
+- Modifiers: unfoldr
+- Stack operations: !dup, !swap, !tuck
+
 ### Changed
-- Can now read program from a file
+- Interpreter can read a program from a file
+- Scanner can handle tokens containing whitespace
+- All whitespace outside of tokens is ignored, including newlines
+- Scanner can (usually) handle adjacent tokens with no separating whitespace, if the separation point isn't ambiguous
+- Swapped order of arguments to while and until modifiers (the condition function now comes first, matching the order of the if modifier)
+- Renamed builtin: RectDepth -> UniformDepth
+- Renamed special value: #N+ -> #N1
 
 ## 0.0.2 - 2022-11-02
 
