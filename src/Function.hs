@@ -1,8 +1,8 @@
 module Function (
   Function (..),
   Arity,
+  ArgList,
   arity,
-  extract,
   bind,
   bind2,
   bindSecond,
@@ -37,6 +37,9 @@ import Value (
 -- The Arity of a function is an Int
 type Arity = Int
 
+-- The ArgList of a function is a list of Values
+type ArgList = [Value]
+
 -- Function represents a curried function:
 --  Constant is a wrapper around a Value, which could be thought of as
 --   representing a 0-arity function that returns a constant
@@ -51,11 +54,6 @@ arity :: Function -> Arity
 arity (Constant _) = 0
 arity (Function a _) = a
 
--- If the Function is a Constant, return its value; otherwise, return Nothing
-extract :: Function -> Maybe Value
-extract (Constant x) = Just x
-extract _ = Nothing
-
 -- Functions are not normally shown, but can be in some error messages
 instance Show Function where
   show (Constant x) = "<const " ++ show x ++ ">"
@@ -65,7 +63,7 @@ instance Show Function where
 --  Composing two Constants returns the first one
 --  Composing any non-Constant Function with a Constant binds the Constant's
 --   value to the first argument of the Function
---  Composing any Function f with a non-Constant Functions g results in
+--  Composing any Function f with a non-Constant Function g results in
 --   a new Function that binds its first argument to g and composes f with
 --   the result
 instance Semigroup Function where
@@ -125,7 +123,7 @@ apply2 f x y
 -- Function, cycle the argument list and trim to the correct length
 -- The only time this doesn't work is if the argument list is empty, which
 -- gives an error
-applyFully :: Function -> [Value] -> Value
+applyFully :: Function -> ArgList -> Value
 applyFully (Constant x) _ = x
 applyFully _ [] = error "Cannot apply function to empty arglist"
 applyFully f args
@@ -153,7 +151,7 @@ triadic f = Function 3 (dyadic . f)
 tetradic :: (Value -> Value -> Value -> Value -> Value) -> Function
 tetradic f = Function 4 (triadic . f)
 
--- Given a one-argument Hakell function that takes ScalarValues, return a new
+-- Given a one-argument Haskell function that takes ScalarValues, return a new
 -- function that applies that function to non-List arguments and maps the
 -- function over List arguments
 mapOverList :: (ScalarValue -> Value) -> Value -> Value
@@ -161,10 +159,10 @@ mapOverList f (List l) = List $ map (mapOverList f) l
 mapOverList f (Number x) = f (ScalarNumber x)
 mapOverList f (Character c) = f (ScalarChar c)
 
--- Given a two-argument Hakell function that takes ScalarValues, return
+-- Given a two-argument Haskell function that takes ScalarValues, return
 -- a new function that applies that function to non-List arguments and maps
 -- the function over List arguments
--- TODO: should this use some kind of zip-longest logic instead of zipWith?
+-- TODO: use some kind of zip-longest logic instead of zipWith
 mapOverLists :: (ScalarValue -> ScalarValue -> Value) -> Value -> Value -> Value
 mapOverLists f (List l) (List m) = List $ zipWith (mapOverLists f) l m
 mapOverLists f x (List l) = List $ map (mapOverLists f x) l
@@ -174,7 +172,7 @@ mapOverLists f (Number x) (Character c) = f (ScalarNumber x) (ScalarChar c)
 mapOverLists f (Character c) (Number x) = f (ScalarChar c) (ScalarNumber x)
 mapOverLists f (Character c) (Character d) = f (ScalarChar c) (ScalarChar d)
 
--- Given a two-argument Hakell function that takes a ScalarValue and a Value,
+-- Given a two-argument Haskell function that takes a ScalarValue and a Value,
 -- return a new function that applies that function to its arguments if the
 -- first argument is not a List and maps over a first argument that is a List
 mapOverLeftList :: (ScalarValue -> Value -> Value) -> Value -> Value -> Value
