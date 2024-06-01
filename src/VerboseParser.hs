@@ -3,9 +3,17 @@ module VerboseParser (
   parseArgs
 ) where
 
-import Data.Char (isUpper, isLower, isDigit, isSpace)
+import Data.Char (
+  isSpace,
+  isLower,
+  isUpper,
+  isAlpha,
+  isAlphaNum,
+  isDigit
+  )
 import qualified Data.Map as Map
-import Text.Read (readPrec, readMaybe)
+import Data.Maybe (mapMaybe)
+import Text.Read (readPrec, readMaybe, readEither)
 import Text.ParserCombinators.ReadPrec (
   ReadPrec,
   lift,
@@ -26,7 +34,8 @@ data Token =
   Modifier BM.BuiltinModifier |
   Argument Int |
   Literal Value |
-  SpecialValue Value
+  SpecialValue Value |
+  Comment String
   deriving (Show)
 
 data TokenList = TokenList {
@@ -85,27 +94,53 @@ specialValues = Map.fromList [
   ("$0", List $ map Character ['0'..'9']),
   ("$P", List $ map Character [' '..'~']),
   ("#N", List $ map Number [0..]),
-  ("#N+", List $ map Number [1..]),
+  ("#N1", List $ map Number [1..]),
   ("#Z", List $ map Number $ [1..] >>= (\n -> [1-n, n]))
   ]
 
 -- Helper ReadPrec parsers for the Read instances below:
 
--- Skip over a string of as many whitespace characters as possible
+-- Skip over zero or more whitespace characters
 skipWhitespace :: ReadPrec ()
 skipWhitespace = lift ReadP.skipSpaces
 
+-- Skip over zero or more non-newline whitespace characters
+skipSpaces :: ReadPrec ()
+skipSpaces = lift $ ReadP.munch (\c -> isSpace c && c /= '\n') >> pure ()
+
+-- Skip over the rest of the string unconditionally
+skipWholeString :: ReadPrec ()
+skipWholeString = lift $ ReadP.munch (const True) >> pure ()
+
+-- Match one or more digits
+getDigits :: ReadPrec String
+getDigits = lift $ ReadP.munch1 isDigit
+
+-- Match a name: start with a letter, then 0 or more letters or numbers,
+-- then optionally a trailing ?
+getName :: ReadPrec String
+getName = lift $ do
+  c <- ReadP.satisfy isAlpha
+  s <- ReadP.munch isAlphaNum
+  q <- ReadP.string "?" ReadP.<++ ReadP.string ""
+  pure (c : s ++ q)
+
+-- Match a special value token: start with one of # $ \, then 1 or more
+-- letters or numbers
+getSpecialValue :: ReadPrec String
+getSpecialValue = lift $ do
+  c <- ReadP.choice (map ReadP.char "#$\\")
+  s <- ReadP.munch1 isAlphaNum
+  pure (c : s)
+
 -- Match a string of as many non-whitespace characters as possible
+-- (must be at least one)
 getNonSpaceString :: ReadPrec String
 getNonSpaceString = lift $ ReadP.munch1 $ not . isSpace
 
--- Match a string of as many digits as possible
-getDigitString :: ReadPrec String
-getDigitString = lift $ ReadP.munch1 isDigit
-
--- Match the rest of the string unconditionally
-getWholeString :: ReadPrec String
-getWholeString = lift $ ReadP.munch $ const True
+-- Match the rest of the string up to (but not including) the next newline
+getRestOfLine :: ReadPrec String
+getRestOfLine = lift $ ReadP.munch (/= '\n')
 
 -- To read a Token, read a built-in function or modifier, an argument
 -- reference, a literal, a function or modifier alias, or a special value
@@ -116,13 +151,14 @@ instance Read Token where
     readArgReference,
     readLiteral,
     readCharCodeLiteral,
+    readComment,
     readFunctionAlias,
     readModifierAlias,
     readSpecialValue
     ] where
       -- Match a built-in function's name exactly
       readFunction = do
-        name@(firstChar : _) <- getNonSpaceString
+        name@(firstChar : _) <- getName
         if isUpper firstChar
         then case readMaybe name of
           Just f -> pure (Function f)
@@ -131,7 +167,7 @@ instance Read Token where
       -- Match a built-in modifier's name exactly (but with the first letter
       -- in lowercase)
       readModifier = do
-        name@(firstChar : _) <- getNonSpaceString
+        name@(firstChar : _) <- getName
         if isLower firstChar
         then case readMaybe (capitalise name) of
           Just m -> pure (Modifier m)
@@ -140,7 +176,7 @@ instance Read Token where
       -- Match an argument reference like @1
       readArgReference = do
         '@' <- get
-        argNumber <- getDigitString
+        argNumber <- getDigits
         case readMaybe argNumber of
           Just n -> pure (Argument n)
           Nothing -> pfail
@@ -149,26 +185,31 @@ instance Read Token where
       -- Match a character code literal like \13
       readCharCodeLiteral = do
         '\\' <- get
-        charCode <- getDigitString
+        charCode <- getDigits
         case readMaybe charCode of
           Just n -> pure (Literal $ Character $ chr' n)
           Nothing -> pfail
+      -- Match a line comment starting with ;
+      readComment = do
+        ';' <- get
+        _ <- skipSpaces
+        Comment <$> getRestOfLine
       -- Match an alias for a built-in function
       readFunctionAlias = do
-        tokenString <- getNonSpaceString
-        case Map.lookup tokenString functionAliases of
+        alias <- getName
+        case Map.lookup alias functionAliases of
           Just f -> pure (Function f)
           Nothing -> pfail
       -- Match an alias for a built-in modifier
       readModifierAlias = do
-        tokenString <- getNonSpaceString
-        case Map.lookup tokenString modifierAliases of
+        alias <- getName
+        case Map.lookup alias modifierAliases of
           Just m -> pure (Modifier m)
           Nothing -> pfail
       -- Match a special value like #N
       readSpecialValue = do
-        tokenString <- getNonSpaceString
-        case Map.lookup tokenString specialValues of
+        special <- getSpecialValue
+        case Map.lookup special specialValues of
           Just v -> pure (SpecialValue v)
           Nothing -> pfail
 
@@ -195,10 +236,10 @@ instance Read TokenList where
         -- string
         badTokenError = do
           badToken <- getNonSpaceString
-          _ <- getWholeString
+          _ <- skipWholeString
           -- TODO: More granular error messages depending on what badToken
           -- is? E.g. "Unterminated string literal" if it starts with a quote
-          pure (TokenList $ Left $ "While scanning, unrecognized token: " ++ badToken)
+          pure (TokenList $ Left $ "While scanning, unrecognized token: " ++ show badToken)
         -- If we are at the end of input, return a successful empty token list
         endOfInput = pure (TokenList $ Right [])
 
@@ -213,20 +254,21 @@ maybeToEither message Nothing = Left message
 -- For now, just put all the tokens in a single function
 -- TODO: more-complex program structures
 parseTokens :: [Token] -> Either String [[Command]]
-parseTokens tokens = Right [map tokenToCommand tokens] where
-  tokenToCommand (Function f) = PushFn f
-  tokenToCommand (Modifier m) = ModifyFn m
-  tokenToCommand (Argument a) = BindArg a
-  tokenToCommand (Literal v) = BindVal v
-  tokenToCommand (SpecialValue v) = BindVal v
+parseTokens tokens = Right [mapMaybe tokenToCommand tokens] where
+  tokenToCommand (Function f) = Just $ PushFn f
+  tokenToCommand (Modifier m) = Just $ ModifyFn m
+  tokenToCommand (Argument a) = Just $ BindArg a
+  tokenToCommand (Literal v) = Just $ BindVal v
+  tokenToCommand (SpecialValue v) = Just $ BindVal v
+  tokenToCommand (Comment _) = Nothing
 
 -- Scan a full program as a list of Tokens by reading a TokenList and
 -- then extracting either a list of tokens or error message from it
 scanProgram :: String -> Either String [Token]
-scanProgram code = case readMaybe code of
-  Just tokenList -> tokensOrError tokenList
+scanProgram code = case readEither code of
+  Right tokenList -> tokensOrError tokenList
   -- This case shouldn't happen, but handle it gracefully
-  Nothing -> Left "Error while scanning program"
+  Left errorMessage -> Left $ "Error while scanning program: " ++ errorMessage
 
 -- Parse a full program as a list of lists of Commands
 parseProgram :: String -> Either String [[Command]]
