@@ -28,10 +28,12 @@ import Value (Value (..), chr')
 import Command (Command (..))
 import qualified BuiltinFunction as BF
 import qualified BuiltinModifier as BM
+import qualified BuiltinStackOp as BSO
 
 data Token =
   Function BF.BuiltinFunction |
   Modifier BM.BuiltinModifier |
+  StackOp BSO.BuiltinStackOp |
   Argument Int |
   Literal Value |
   SpecialValue Value |
@@ -148,6 +150,7 @@ instance Read Token where
   readPrec = choice [
     readFunction,
     readModifier,
+    readStackOp,
     readArgReference,
     readLiteral,
     readCharCodeLiteral,
@@ -171,6 +174,16 @@ instance Read Token where
         if isLower firstChar
         then case readMaybe (capitalise name) of
           Just m -> pure (Modifier m)
+          Nothing -> pfail
+        else pfail
+      -- Match a built-in stack operator's name exactly (but with a leading !
+      -- and the first letter in lowercase)
+      readStackOp = do
+        '!' <- get
+        name@(firstChar : _) <- getName
+        if isLower firstChar
+        then case readMaybe (capitalise name) of
+          Just o -> pure (StackOp o)
           Nothing -> pfail
         else pfail
       -- Match an argument reference like @1
@@ -257,6 +270,7 @@ parseTokens :: [Token] -> Either String [[Command]]
 parseTokens tokens = Right [mapMaybe tokenToCommand tokens] where
   tokenToCommand (Function f) = Just $ PushFn f
   tokenToCommand (Modifier m) = Just $ ModifyFn m
+  tokenToCommand (StackOp o) = Just $ StackCmd o
   tokenToCommand (Argument a) = Just $ BindArg a
   tokenToCommand (Literal v) = Just $ BindVal v
   tokenToCommand (SpecialValue v) = Just $ BindVal v

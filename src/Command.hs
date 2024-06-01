@@ -9,23 +9,25 @@ import Data.Maybe (listToMaybe)
 import Value (Value)
 import Function (Function (..), bind, applyFully)
 import Modifier (modify)
-import State (State (..), Stack, emptyState)
+import StackOperation (transform)
+import State (State (..), emptyState)
 import qualified BuiltinFunction as BF
 import qualified BuiltinModifier as BM
+import qualified BuiltinStackOp as BSO
 
 -- A Command represents the change to the program state caused by a single
 -- token of the program
 --  PushFn: Push a built-in Function to the Stack
 --  ModifyFn: Modify the top Function(s) on the Stack
+--  StackCmd: Modify the Stack in some way
 --  BindVal: Bind a Value to the topmost Function on the Stack
 --  BindArg: Bind one of the argument values to the topmost Function
---  StackCmd: Modify the Stack in some way
 data Command =
   PushFn BF.BuiltinFunction |
   ModifyFn BM.BuiltinModifier |
+  StackCmd BSO.BuiltinStackOp |
   BindVal Value |
-  BindArg Int |
-  StackCmd (Stack -> Stack)
+  BindArg Int
 
 -- Apply a Command to a State, returning an updated State
 -- BindArg binds the nth element of the current arguments list (using
@@ -40,9 +42,9 @@ executeCommand :: State -> Command -> State
 executeCommand state@State{stack} (PushFn f) =
   state{stack = BF.implementation f : stack}
 executeCommand state@State{stack} (ModifyFn m) =
-  state{stack = modify stack (BM.implementation m)}
+  state{stack = modify (BM.implementation m) stack}
 executeCommand state@State{stack} (StackCmd cmd) =
-  state{stack = cmd stack}
+  state{stack = transform (BSO.implementation cmd) stack}
 executeCommand state@State{arguments} (BindArg n) =
   executeCommand state (BindVal $ indexCycle arguments n)
   where indexCycle l i = (cycle l) !! i

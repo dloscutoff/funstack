@@ -24,8 +24,8 @@ instance Show Modifier where
 -- For an n-modifier, pop n Functions from the Stack, apply the modifier
 -- function to them, and push the single resulting Function back onto
 -- the Stack
-modify :: Stack -> Modifier -> Stack
-modify s m
+modify :: Modifier -> Stack -> Stack
+modify m s
   | (Modifier1 mfn) <- m, ([f], s') <- popN 1 s = mfn f : s'
   | (Modifier2 mfn) <- m, ([f, g], s') <- popN 2 s = mfn f g : s'
   | (Modifier3 mfn) <- m, ([f, g, h], s') <- popN 3 s = mfn f g h : s'

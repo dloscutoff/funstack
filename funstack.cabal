@@ -27,9 +27,11 @@ library
   exposed-modules:
       BuiltinFunction
       BuiltinModifier
+      BuiltinStackOp
       Command
       Function
       Modifier
+      StackOperation
       State
       Value
       VerboseParser
