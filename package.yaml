@@ -1,9 +1,9 @@
 name:                funstack
-version:             0.0.2
+version:             0.0.3
 github:              "dloscutoff/funstack"
 license:             MIT
 author:              "David Loscutoff"
-copyright:           "2022 David Loscutoff"
+copyright:           "2022-24 David Loscutoff"
 
 extra-source-files:
 - README.md

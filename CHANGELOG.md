@@ -8,6 +8,8 @@ and this project adheres to the
 
 ## Unreleased
 
+## 0.0.3 - 2024-06-01
+
 ### Added
 - Single-line comment syntax starting with ;
 - Builtins: Read
