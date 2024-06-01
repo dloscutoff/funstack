@@ -8,6 +8,7 @@ import Value (Value (..), listOrSingleton, valToBool)
 import Function (
   Function (..),
   Arity,
+  ArgList,
   arity,
   bind,
   bind2,
@@ -63,6 +64,7 @@ data BuiltinModifier =
   Selftable |
   Table |
   Takewhile |
+  Unfoldr |
   Until |
   While
   deriving (Show, Read)
@@ -140,14 +142,16 @@ flipArgs f = Function (max 2 (arity f)) (\x -> bindSecond f x)
 rotateArgs :: Function -> Function
 rotateArgs f = Function (arity f) (\x -> rbind f x)
 
--- Given a Function, return a new Function that works as follows:
---  Collect a given number of arguments in a list
---  Once the full number of arguments has been collected, apply the original
---   Function to the collected arguments using the given application function
-collectArgs :: Function -> Arity -> (Function -> [Value] -> Value) -> [Value] -> Value -> Function
-collectArgs f a applyFn args arg
-  | a <= 1 = Constant $ applyFn f $ reverse (arg : args)
-  | otherwise = Function (a - 1) $ collectArgs f (a - 1) applyFn (arg : args)
+-- Given a function Arity, return a new Function that works as follows:
+--  Collect that many arguments in a list
+--  Once the full number of arguments has been collected, apply some Haskell
+--  function to the collected argument list and return a Value
+collectArgs :: Arity -> (ArgList -> Value) -> Function
+collectArgs a applyFn = Function a $ collectArgs' a []
+  where
+    collectArgs' a' args arg
+      | a' <= 1 = Constant $ applyFn $ reverse (arg : args)
+      | otherwise = Function (a' - 1) $ collectArgs' (a' - 1) (arg : args)
 
 -- Modify a Function to have the given arity
 --  If the new arity is the same as the old arity, no change is made
@@ -162,7 +166,7 @@ convertArity a' (Constant x)
 convertArity a' f
   | a' < 1 = error "Cannot convert function to arity less than 1"
   | a' == arity f = f
-  | otherwise = Function a' $ collectArgs f a' applyFully []
+  | otherwise = collectArgs a' (applyFully f)
 
 -- Modify a Function to generate an infinite List by repeated appliction
 -- The new Function has the same arity (call it N) as the original Function
@@ -170,31 +174,30 @@ convertArity a' f
 -- element is the result of applying the Function over the preceding N
 -- elements
 iterate' :: Function -> Function
-iterate' f = Function (arity f) (collectArgs f (arity f) iterateApply [])
+iterate' f = collectArgs (arity f) (List . unfoldr iterateStep)
   where
-    iterateStep f' args = Just (head args, tail args ++ [applyFully f' args])
-    iterateApply f' = List . unfoldr (iterateStep f')
+    iterateStep args = Just (head args, tail args ++ [newVal])
+      where newVal = applyFully f args
 
 -- Same as iterate', but stop when the results stop changing
 -- For higher-arity Functions, the entire argument list must remain unchanged
 -- to stop the iteration
 fixiter :: Function -> Function
-fixiter f = Function (arity f) (collectArgs f (arity f) fixiterApply [])
+fixiter f = collectArgs (arity f) (List . fixiterApply)
   where
-    fixiterApply' f' args
+    fixiterApply args
       | all (== newVal) args = args
-      | otherwise = head args : fixiterApply' f' (tail args ++ [newVal])
-      where newVal = applyFully f' args
-    fixiterApply f' = List . fixiterApply' f'
+      | otherwise = head args : fixiterApply (tail args ++ [newVal])
+      where newVal = applyFully f args
 
 -- Same as fixiter, but only return the final result, not the whole list
 fixpoint :: Function -> Function
-fixpoint f = Function (arity f) (collectArgs f (arity f) fixpointApply [])
+fixpoint f = collectArgs (arity f) fixpointApply
   where
-    fixpointApply f' args
+    fixpointApply args
       | all (== newVal) args = newVal
-      | otherwise = fixpointApply f (tail args ++ [newVal])
-      where newVal = applyFully f' args
+      | otherwise = fixpointApply (tail args ++ [newVal])
+      where newVal = applyFully f args
 
 -- Given a Function and a list of Values, take elements from the list while
 -- applying the Function to them results in a truthy Value
@@ -410,10 +413,30 @@ foldr1' f l
   | null l = error $ "Cannot foldr1 empty list"
   | otherwise = head $ scanr1' f l
 
+-- Given two Functions and an initial argument list of Values, perform
+-- a generalized right unfold
+-- At each step, the first Function is applied to the arglist and that
+-- result is appended to the result list
+-- Then the second Function is applied to the arglist; that result is
+-- appended to the arglist, and the first element of the arglist is removed
+-- Once the first element of the arglist is falsey, the process stops
+unfoldr' :: Function -> Function -> ArgList -> [Value]
+unfoldr' f g args
+  | null args = error "Cannot unfoldr' empty arglist"
+  | valToBool (head args) = applyFully f args : unfoldr' f g (tail args ++ [applyFully g args])
+  | otherwise = []
+
 -- Given a Function, apply the takewhile modifier to it and return a
 -- new Function
 modTakeWhile :: Function -> Function
 modTakeWhile f = monadic $ List . takeWhile' f . listOrSingleton
+
+-- Given two Functions, apply the unfoldr modifier to them and return a
+-- new Function
+-- The arity of the combined Function is the max of the arities of
+-- the two Functions
+modUnfoldR :: Function -> Function -> Function
+modUnfoldR f g = collectArgs (arity f `max` arity g) (List . unfoldr' f g)
 
 -- Given a BuiltinModifier, return the Modifier that it represents
 implementation :: BuiltinModifier -> Modifier
@@ -452,8 +475,9 @@ implementation m = case m of
   Over -> Modifier2 over
   Pair -> Modifier2 (\f g -> hook (BF.fnPair <> f) g)
   Rcompose -> Modifier2 rcompose2
-  Until -> Modifier2 (\f g -> modTakeWhile (BF.fnNot <> g) <> iterate' f)
-  While -> Modifier2 (\f g -> modTakeWhile g <> iterate' f)
+  Unfoldr -> Modifier2 modUnfoldR
+  Until -> Modifier2 (\f g -> modTakeWhile (BF.fnNot <> f) <> iterate' g)
+  While -> Modifier2 (\f g -> modTakeWhile f <> iterate' g)
   --- 3-modifiers ---
   Branch -> Modifier3 (\f g h -> rcompose2 (f <> g) h)
   Compose3 -> Modifier3 compose3
