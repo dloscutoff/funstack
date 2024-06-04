@@ -2,6 +2,7 @@ module Main (main) where
 
 import qualified System.IO as IO
 import qualified System.Environment as Env
+import System.Directory (doesFileExist)
 import VerboseParser (parseProgram, parseArgs)
 import Command (executeProgram)
 
@@ -24,17 +25,26 @@ runProgram program args = case runProgram' program args of
   Right result -> putStrLn result
   Left errMessage -> IO.hPutStrLn IO.stderr errMessage
 
+-- Load the program from the given file and return it
+readProgramFromFile :: String -> IO String
+readProgramFromFile = readFile
+
+-- Prompt the user to enter a program on stdin and return it
+readProgramFromStdin :: IO String
+readProgramFromStdin = do
+  putStrLn "Enter your program:"
+  getLine
+
 -- Given a list of args, either load the program from the file given in
 -- the first arg, or read it from stdin; return the program and the
 -- remaining args
 loadProgram :: [String] -> IO (String, [String])
-loadProgram (firstArg : remainingArgs) = do
-  -- TODO: test if firstArg is a filename; read from stdin if not
-  program <- readFile firstArg
-  pure (program, remainingArgs)
+loadProgram allArgs@(firstArg : remainingArgs) = do
+  validFilename <- doesFileExist firstArg
+  program <- if validFilename then readProgramFromFile firstArg else readProgramFromStdin
+  pure (program, if validFilename then remainingArgs else allArgs)
 loadProgram [] = do
-  putStrLn "Enter your program:"
-  program <- getLine
+  program <- readProgramFromStdin
   pure (program, [])
 
 main :: IO ()
