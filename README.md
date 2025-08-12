@@ -42,8 +42,6 @@ This program takes two arguments, increments each of them, and puts those two re
 
 The usual way of invoking the FunStack interpreter is to pass the filename of the FunStack program as a command-line argument. The remaining command-line args are parsed as FunStack values and passed as arguments to the program. Calling the interpreter without arguments reads and executes a single-line program from stdin.
 
-An online version of the interpreter is available at [Replit](https://replit.com/@dloscutoff/funstack).
-
 The easiest way to compile and run the interpreter is using the [Haskell Tool Stack](https://docs.haskellstack.org/en/stable/). Follow the instructions at that link to install it; then, in the top level of the FunStack repository, execute `stack build` to compile the code and `stack run` to run it. Here's an example, assuming `test.fs` contains the program `Pair Inc over`:
 
     C:\Users\DLosc\FunStack>stack run test.fs 42 5
