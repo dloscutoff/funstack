@@ -81,6 +81,8 @@ modifierAliases = Map.fromList [
   ("map", BM.Mapzip),
   ("mapflat", BM.Flatmap),
   ("mapflatten", BM.Flatmap),
+  ("treemap", BM.Treemapzip),
+  ("treezip", BM.Treemapzip),
   ("zipwith", BM.Mapzip)
   ]
 

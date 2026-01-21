@@ -8,6 +8,9 @@ and this project adheres to the
 
 ## Unreleased
 
+### Added
+- Modifiers: treemap
+
 ### Changed
 - Interpreter checks whether first command-line arg is a valid file before attempting to read the program from it (if not, it's treated as just another argument and the program is read from stdin)
 

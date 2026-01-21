@@ -64,6 +64,7 @@ data BuiltinModifier =
   Selftable |
   Table |
   Takewhile |
+  Treemapzip |
   Unfoldr |
   Until |
   While
@@ -225,8 +226,8 @@ dropWhile' f xs
 parallelBind :: [Function] -> Value -> [Function]
 parallelBind fs x = [bind f x | f <- fs]
 
--- Bind multiple Functions to an argument and return a list of new Functions;
--- if the argument is a List, zip the Functions with the elements of the
+-- Bind multiple Functions to an argument and return a list of new Functions
+-- If the argument is a List, zip the Functions with the elements of the
 -- argument; otherwise, bind each Function to the argument
 zipBind :: [Function] -> Value -> [Function]
 zipBind fs (List l) = zipWith bind fs l
@@ -275,6 +276,21 @@ mapZipping f
   where
     mapBind (List l) = zipParallel (arity f - 1) (map (bind f) l)
     mapBind x = mapZipping $ bind f x
+
+-- Convert a Function to map recursively over its list arguments (trees)
+-- and apply directly to its non-list arguments (leaves)
+-- If the Function takes multiple arguments, zip the argument lists
+-- together (truncating to the length of the shortest one)
+-- However, if an argument is not a List, it is used across the board
+treeMapZipping :: Function -> Function
+treeMapZipping f
+  | arity f == 1 = monadic treeMapApply
+  | otherwise = Function (arity f) treeMapBind
+  where
+    treeMapBind (List l) = zipParallel (arity f - 1) (map (bind $ treeMapZipping f) l)
+    treeMapBind x = treeMapZipping $ bind f x
+    treeMapApply (List l) = List [apply (treeMapZipping f) x | x <- l]
+    treeMapApply x = apply f x
 
 -- Convert a Function to map over its first argument
 -- If the Function only takes one argument, apply it to each element of its
@@ -467,6 +483,7 @@ implementation m = case m of
   Selftable -> Modifier1 $ convertArity 1 . table
   Table -> Modifier1 table
   Takewhile -> Modifier1 modTakeWhile
+  Treemapzip -> Modifier1 treeMapZipping
   --- 2-modifiers ---
   And -> Modifier2 (\f g -> ifThenElse f g f)
   Compose -> Modifier2 compose2
