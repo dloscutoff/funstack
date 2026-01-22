@@ -180,12 +180,18 @@ drop' n
   | n >= 0 = genericDrop n
   | otherwise = reverse . genericDrop (abs n) . reverse
 
+-- Repeat the elements of a list infinitely; if the list is empty, return
+-- empty list instead of erroring
+cycle' :: [a] -> [a]
+cycle' [] = []
+cycle' xs = cycle xs
+
 -- Take the first n elements from a list, repeating as necessary; if n is
 -- negative, take elements starting from the end
 takeCycle :: Integer -> [a] -> [a]
 takeCycle n
-  | n >= 0 = genericTake n . cycle
-  | otherwise = reverse . genericTake (abs n) . cycle . reverse
+  | n >= 0 = genericTake n . cycle'
+  | otherwise = reverse . genericTake (abs n) . cycle' . reverse
 
 -- All but the last element of a list; if the list is empty, return
 -- empty list instead of erroring
@@ -197,8 +203,8 @@ init' xs = init xs
 -- count backwards from the end
 indexCycle :: [a] -> Integer -> a
 indexCycle l n
-  | n >= 0 = genericIndex (cycle l) n
-  | otherwise = genericIndex (cycle $ reverse l) (abs n - 1)
+  | n >= 0 = genericIndex (cycle' l) n
+  | otherwise = genericIndex (cycle' $ reverse l) (abs n - 1)
 
 -- Repeat the contents of a list n times
 repeat' :: Integer -> [a] -> [a]
@@ -321,7 +327,7 @@ implementation f = case f of
   All -> monadic $ boolToVal . all valToBool . listOrSingleton
   Any -> monadic $ boolToVal . any valToBool . listOrSingleton
   ConsFalsey -> monadic $ List . consFalsey . listOrSingleton
-  Cycle -> monadic $ List . cycle . listOrSingleton
+  Cycle -> monadic $ List . cycle' . listOrSingleton
   Dec -> charMathMonad pred
   Depth -> monadic $ Number . depth
   Double -> numberMathMonad (* 2)
@@ -365,7 +371,7 @@ implementation f = case f of
   --- Arity 2 ---
   At -> numAndListDyad $ flip genericIndex
   AtCycle -> numAndListDyad $ flip indexCycle
-  Chunks -> dyadic (\x y -> List $ map List $ chunks (cycle $ toIntegerList x) (listOrSingleton y))
+  Chunks -> dyadic (\x y -> List $ map List $ chunks (cycle' $ toIntegerList x) (listOrSingleton y))
   Compare -> dyadic (\x y -> orderingToVal $ x `compare` y)
   Concat -> dyadic (\x y -> List $ listOrSingleton x ++ listOrSingleton y)
   Cons -> dyadic (\x y -> List $ x : listOrSingleton y)
