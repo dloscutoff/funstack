@@ -10,6 +10,7 @@ and this project adheres to the
 
 ### Added
 - Modifiers: treemap
+- Stack operations: !drop, !over, !rot
 
 ### Fixed
 - Errors caused by cycling an empty list
