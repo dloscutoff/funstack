@@ -38,4 +38,4 @@ pop [] = (mempty, [])
 -- If the Stack does not contain enough elements, fill in with the
 -- identity function
 popN :: Int -> Stack -> ([Function], Stack)
-popN n s = (reverse $ take n $ s ++ cycle mempty, drop n s)
+popN n s = (reverse $ take n $ s ++ cycle [mempty], drop n s)

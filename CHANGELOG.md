@@ -14,6 +14,7 @@ and this project adheres to the
 
 ### Fixed
 - Errors caused by cycling an empty list
+- Applying a modifier to not enough stack items now fills in with Id, as intended
 
 ### Changed
 - Interpreter checks whether first command-line arg is a valid file before attempting to read the program from it (if not, it's treated as just another argument and the program is read from stdin)
