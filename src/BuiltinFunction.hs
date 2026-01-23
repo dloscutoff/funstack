@@ -372,7 +372,7 @@ implementation f = case f of
   At -> numAndListDyad $ flip genericIndex
   AtCycle -> numAndListDyad $ flip indexCycle
   Chunks -> dyadic (\x y -> List $ map List $ chunks (cycle' $ toIntegerList x) (listOrSingleton y))
-  Compare -> dyadic (\x y -> orderingToVal $ x `compare` y)
+  Compare -> dyadic (\x y -> orderingToVal $ y `compare` x)
   Concat -> dyadic (\x y -> List $ listOrSingleton x ++ listOrSingleton y)
   Cons -> dyadic (\x y -> List $ x : listOrSingleton y)
   Consr -> dyadic (\x y -> List $ listOrSingleton y ++ [x])
@@ -380,13 +380,13 @@ implementation f = case f of
   Drop -> numAndListDyad $ (List .) . drop'
   Equal -> numberMathDyad $ (boolToInteger .) . (==)
   FromBase -> numAndListDyad valsFromBase
-  Greater -> numberMathDyad $ (boolToInteger .) . (>)
-  GreaterEqual -> numberMathDyad $ (boolToInteger .) . (>=)
+  Greater -> numberMathDyad $ (boolToInteger .) . flip (>)
+  GreaterEqual -> numberMathDyad $ (boolToInteger .) . flip (>=)
   IDiv -> numberMathDyad $ flip div
   IRange -> dyadic $ mapOverLists inclRange
   Interleave -> dyadic (\x y -> List $ interleave (listOrSingleton x) (listOrSingleton y))
-  Less -> numberMathDyad $ (boolToInteger .) . (<)
-  LessEqual -> numberMathDyad $ (boolToInteger .) . (<=)
+  Less -> numberMathDyad $ (boolToInteger .) . flip (<)
+  LessEqual -> numberMathDyad $ (boolToInteger .) . flip (<=)
   Minus -> charMathDyad $ flip (-)
   Mod -> numberMathDyad $ flip mod
   NotEqual -> numberMathDyad $ (boolToInteger .) . (/=)
