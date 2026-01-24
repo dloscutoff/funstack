@@ -104,6 +104,10 @@ data BuiltinFunction =
   Less |
   LessEqual |
   Lines |
+  Max |
+  Maximum |
+  Min |
+  Minimum |
   Minus |
   Mod |
   Neg |
@@ -347,6 +351,8 @@ implementation f = case f of
   Last -> monadic $ last . listOrSingleton
   Length -> monadic (\l -> Number $ genericLength $ listOrString l)
   Lines -> monadic linesUnlines
+  Maximum -> monadic $ maximum . listOrSingleton
+  Minimum -> monadic $ minimum . listOrSingleton
   Neg -> numberMathMonad (0 -)
   Negative -> numberMathMonad $ boolToInteger . (< 0)
   Not -> fnNot
@@ -387,6 +393,8 @@ implementation f = case f of
   Interleave -> dyadic (\x y -> List $ interleave (listOrSingleton x) (listOrSingleton y))
   Less -> numberMathDyad $ (boolToInteger .) . flip (<)
   LessEqual -> numberMathDyad $ (boolToInteger .) . flip (<=)
+  Max -> dyadic max
+  Min -> dyadic min
   Minus -> charMathDyad $ flip (-)
   Mod -> numberMathDyad $ flip mod
   NotEqual -> numberMathDyad $ (boolToInteger .) . (/=)

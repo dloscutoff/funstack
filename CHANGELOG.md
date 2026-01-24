@@ -9,6 +9,7 @@ and this project adheres to the
 ## Unreleased
 
 ### Added
+- Builtins: Max, Maximum, Min, Minimum
 - Modifiers: treemap
 - Stack operations: !drop, !over, !rot
 
