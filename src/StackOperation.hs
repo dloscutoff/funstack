@@ -2,7 +2,7 @@ module StackOperation (
   StackOperation (..)
 ) where
 
-import State (Stack)
+import Stack (Stack)
 
 -- A StackOperation transforms a Stack into a new Stack
 data StackOperation = StackOperation {

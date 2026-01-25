@@ -1,16 +1,19 @@
+{-# LANGUAGE NamedFieldPuns #-}
+
 module State (
-  Stack,
-  State (..),
-  emptyState,
-  push,
-  pop,
-  popN
+  executeProgram
 ) where
 
-import Function (Function, ArgList)
-
--- A Stack is simply a list of Functions
-type Stack = [Function]
+import Data.Maybe (listToMaybe)
+import Value (Value)
+import Function (Function (..), ArgList, bind, applyFully)
+import Modifier (modify)
+import StackOperation (transform)
+import Stack (Stack, push, pop)
+import Command (Command (..))
+import qualified BuiltinFunction as BF
+import qualified BuiltinModifier as BM
+import qualified BuiltinStackOp as BSO
 
 -- State represents an intermediate stage in the process of creating a
 -- complex Function and applying it to a list of argument Values
@@ -23,23 +26,58 @@ data State = State {
 emptyState :: ArgList -> State
 emptyState xs = State{stack = [], args = xs}
 
--- Push a Function to a Stack, returning a new Stack
-push :: Function -> Stack -> Stack
-push = (:)
+-- Apply a Command to a State, returning an updated State
+-- BindArg binds the nth element of the current arguments list (using
+-- cyclical indexing)
+-- BindVal binds its value to the top Function:
+--  If the result is a Function, it pushes that Function back onto the Stack
+--  If the result is a Constant, it extracts the Value and binds it to the
+--   next Function on the Stack
+-- If there are no Functions left on the Stack, BindVal instead appends its
+-- Value to the arguments list
+applyCommand :: Command -> State -> State
+applyCommand (PushFn f) state@State{stack} =
+  state{stack = push (BF.implementation f) stack}
+applyCommand (ModifyFn m) state@State{stack} =
+  state{stack = modify (BM.implementation m) stack}
+applyCommand (StackCmd cmd) state@State{stack} =
+  state{stack = transform (BSO.implementation cmd) stack}
+applyCommand (BindArg n) state@State{args} =
+  applyCommand (BindVal $ indexCycle args n) state
+  where indexCycle l i = (cycle l) !! i
+applyCommand (BindVal x) state@State{stack = [], args} =
+  state{args = args ++ [x]}
+applyCommand (BindVal x) state@State{stack} =
+  case (bind top x) of
+    Constant y -> applyCommand (BindVal y) state{stack = stack'}
+    top' -> state{stack = push top' stack'}
+  where (top, stack') = pop stack
 
--- Pop the top Function from a Stack, returning the Function and a
--- new Stack with it missing
--- If the Stack is empty, use the identity function
-pop :: Stack -> (Function, Stack)
-pop (f : fs) = (f, fs)
-pop [] = (mempty, [])
+-- Apply a list of Commands to an initially empty State, returning the
+-- final State
+applyCommands :: [Command] -> ArgList -> State
+applyCommands cmds args = foldl (flip applyCommand) (emptyState args) cmds
 
--- Pop n Functions from a Stack, returning a list of Functions and a
--- new Stack with them missing
--- The Functions are listed with the top of the Stack at the end of
--- the list, in keeping with the order in which they were (probably)
--- pushed: a program like A B over should give A over B, not B over A
--- If the Stack does not contain enough elements, fill in with the
--- identity function
-popN :: Int -> Stack -> ([Function], Stack)
-popN n s = (reverse $ take n $ s ++ cycle [mempty], drop n s)
+-- Given a State, compose the Stack into one Function and apply it
+-- to the ArgList to get a return Value
+--  If the State has an empty ArgList, no Value can be returned
+--  If the State has an empty Stack, return the last Value in the ArgList
+--   (to which at least one new value has likely been added during the
+--   execution of the line)
+applyStack :: State -> Maybe Value
+applyStack State{args = []} = Nothing
+applyStack State{stack = [], args} = Just $ last args
+applyStack State{stack, args} = Just $ applyFully (composeAll stack) args
+  where composeAll = mconcat . reverse
+
+-- Execute a line of Commands on an initially empty State and return
+-- the resulting Value
+executeLine :: [Command] -> ArgList -> Maybe Value
+executeLine cmds = applyStack . applyCommands cmds
+
+-- Execute the first line of the program as the main function
+-- If the program is empty, return the first argument (if any)
+-- TODO: subsequent lines as helper functions?
+executeProgram :: [[Command]] -> ArgList -> Maybe Value
+executeProgram (firstLine : _) = executeLine firstLine
+executeProgram [] = listToMaybe

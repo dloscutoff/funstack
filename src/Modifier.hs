@@ -4,7 +4,7 @@ module Modifier (
 ) where
 
 import Function (Function)
-import State (Stack, popN)
+import Stack (Stack, popN)
 
 -- A Modifier transforms one or more Functions into a new Function
 data Modifier =

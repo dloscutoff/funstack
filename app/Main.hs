@@ -4,7 +4,7 @@ import qualified System.IO as IO
 import qualified System.Environment as Env
 import System.Directory (doesFileExist)
 import VerboseParser (parseProgram, parseArgs)
-import Command (executeProgram)
+import State (executeProgram)
 
 -- Given a program and list of args, parse both and execute the program
 --  If parsing failed, return an error message

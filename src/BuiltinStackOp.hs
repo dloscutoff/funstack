@@ -5,7 +5,7 @@ module BuiltinStackOp (
 
 import Data.Function ((&))
 import StackOperation (StackOperation (..))
-import State (Stack, push, pop)
+import Stack (Stack, push, pop)
 
 -- Built-in stack operations are represented by the BuiltinStackOp type
 data BuiltinStackOp =
