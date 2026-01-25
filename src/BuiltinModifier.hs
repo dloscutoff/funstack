@@ -64,7 +64,9 @@ data BuiltinModifier =
   Selftable |
   Table |
   Takewhile |
+  Treeapply |
   Treemapzip |
+  Treewalk |
   Unfoldr |
   Until |
   While
@@ -292,6 +294,30 @@ treeMapZipping f
     treeMapApply (List l) = List [apply (treeMapZipping f) x | x <- l]
     treeMapApply x = apply f x
 
+-- Convert a Function to apply recursively over a nested list, interpreted
+-- as a tree
+-- Apply the function to each level of the list after recursing
+-- Leave non-lists (leaves) unchanged
+treeApply :: Function -> Value -> Value
+treeApply f t
+  | arity f > 1 = error "Function for treeapply must have arity 1"
+  | (List l) <- t = apply f $ List $ map (treeApply f) l
+  | leaf <- t = leaf
+
+-- Convert three Functions to walk recursively over a nested list, interpreted
+-- as a tree, applying the Functions:
+--  - Apply the first function to each level of the list before recursing
+--  - Apply the second function to non-lists (leaf nodes)
+--  - Apply the third function to each level of the list after recursing
+treeWalk :: Function -> Function -> Function -> Value -> Value
+treeWalk f g h t
+  | maximum (map arity [f, g, h]) > 1 = error "Functions for treewalk must have arity 1"
+  | (List _) <- t = treeWalk' $ apply f t
+  | otherwise = treeWalk' t
+  where
+    treeWalk' (List l) = apply h $ List $ map (treeWalk f g h) l
+    treeWalk' leaf = apply g leaf
+
 -- Convert a Function to map over its first argument
 -- If the Function only takes one argument, apply it to each element of its
 -- argument, pair the result with the original element, and return a List
@@ -483,6 +509,7 @@ implementation m = case m of
   Selftable -> Modifier1 $ convertArity 1 . table
   Table -> Modifier1 table
   Takewhile -> Modifier1 modTakeWhile
+  Treeapply -> Modifier1 (monadic . treeApply)
   Treemapzip -> Modifier1 treeMapZipping
   --- 2-modifiers ---
   And -> Modifier2 (\f g -> ifThenElse f g f)
@@ -501,5 +528,6 @@ implementation m = case m of
   Fork -> Modifier3 (\f g h -> hook (f <> g) h)
   If -> Modifier3 ifThenElse
   Rcompose3 -> Modifier3 rcompose3
+  Treewalk -> Modifier3 (\f g h -> monadic $ treeWalk f g h)
   --- 4-modifiers ---
   Compose4 -> Modifier4 compose4

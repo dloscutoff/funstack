@@ -10,7 +10,7 @@ and this project adheres to the
 
 ### Added
 - Builtins: Max, Maximum, Min, Minimum
-- Modifiers: treemap
+- Modifiers: treeapply, treemap, treewalk
 - Stack operations: !drop, !over, !rot
 
 ### Fixed
