@@ -351,8 +351,8 @@ implementation f = case f of
   Last -> monadic $ last . listOrSingleton
   Length -> monadic (\l -> Number $ genericLength $ listOrString l)
   Lines -> monadic linesUnlines
-  Maximum -> monadic $ maximum . listOrSingleton
-  Minimum -> monadic $ minimum . listOrSingleton
+  Maximum -> monadic $ maximum . map scalarToVal . flattenAll . listOrSingleton
+  Minimum -> monadic $ minimum . map scalarToVal . flattenAll . listOrSingleton
   Neg -> numberMathMonad (0 -)
   Negative -> numberMathMonad $ boolToInteger . (< 0)
   Not -> fnNot
