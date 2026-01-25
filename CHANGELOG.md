@@ -12,6 +12,7 @@ and this project adheres to the
 - Builtins: Max, Maximum, Min, Minimum
 - Modifiers: treeapply, treemap, treewalk
 - Stack operations: !drop, !over, !rot
+- Aliases: Unlines (Lines)
 
 ### Fixed
 - Errors caused by cycling an empty list

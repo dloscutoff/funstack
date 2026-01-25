@@ -72,6 +72,7 @@ functionAliases = Map.fromList [
   ("Suffixes", BF.Tails),
   ("Unique", BF.Nub),
   ("Uniquify", BF.Nub),
+  ("Unlines", BF.Lines),
   ("Zero?", BF.Zero)
   ]
 
