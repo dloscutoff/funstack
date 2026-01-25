@@ -6,10 +6,9 @@ module State (
 
 import Data.Maybe (listToMaybe)
 import Value (Value)
-import Function (Function (..), ArgList, bind, applyFully)
-import Modifier (modify)
-import StackOperation (transform)
-import Stack (Stack, push, pop)
+import Function (ArgList, applyFully)
+import StackOperation (applyOperation, pushFunction, applyModifier, bindValue)
+import Stack (Stack)
 import Command (Command (..))
 import qualified BuiltinFunction as BF
 import qualified BuiltinModifier as BM
@@ -27,31 +26,29 @@ emptyState :: ArgList -> State
 emptyState xs = State{stack = [], args = xs}
 
 -- Apply a Command to a State, returning an updated State
--- BindArg binds the nth element of the current arguments list (using
--- cyclical indexing)
--- BindVal binds its value to the top Function:
---  If the result is a Function, it pushes that Function back onto the Stack
---  If the result is a Constant, it extracts the Value and binds it to the
---   next Function on the Stack
--- If there are no Functions left on the Stack, BindVal instead appends its
--- Value to the arguments list
 applyCommand :: Command -> State -> State
-applyCommand (PushFn f) state@State{stack} =
-  state{stack = push (BF.implementation f) stack}
-applyCommand (ModifyFn m) state@State{stack} =
-  state{stack = modify (BM.implementation m) stack}
-applyCommand (StackCmd cmd) state@State{stack} =
-  state{stack = transform (BSO.implementation cmd) stack}
-applyCommand (BindArg n) state@State{args} =
-  applyCommand (BindVal $ indexCycle args n) state
+-- Push a Function to the Stack
+applyCommand (PushFn f) s = s{stack = stack'}
+  where stack' = pushFunction (BF.implementation f) (stack s)
+-- Apply a Modifier to the top elements of the Stack
+applyCommand (ModifyFn m) s = s{stack = stack'}
+  where stack' = applyModifier (BM.implementation m) (stack s)
+-- Apply a StackOperation to the Stack
+applyCommand (StackCmd cmd) s = s{stack = stack'}
+  where stack' = applyOperation (BSO.implementation cmd) (stack s)
+-- Bind a Value to the top element of the Stack
+-- If the Value drops all the way through to the bottom of the Stack,
+-- append it instead to the State's arguments list
+applyCommand (BindVal x) s =
+  case (bindValue x (stack s)) of
+    Right stack' -> s{stack = stack'}
+    Left x' -> s{stack = [], args = (args s) ++ [x']}
+-- Bind the nth Value from the State's arguments list (using cyclical
+-- indexing)
+applyCommand (BindArg n) s
+  | null (args s) = error $ "Cannot reference argument " ++ show n ++ ": the argument list is empty"
+  | otherwise = applyCommand (BindVal $ indexCycle (args s) n) s
   where indexCycle l i = (cycle l) !! i
-applyCommand (BindVal x) state@State{stack = [], args} =
-  state{args = args ++ [x]}
-applyCommand (BindVal x) state@State{stack} =
-  case (bind top x) of
-    Constant y -> applyCommand (BindVal y) state{stack = stack'}
-    top' -> state{stack = push top' stack'}
-  where (top, stack') = pop stack
 
 -- Apply a list of Commands to an initially empty State, returning the
 -- final State
