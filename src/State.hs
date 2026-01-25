@@ -2,12 +2,12 @@ module State (
   Stack,
   State (..),
   emptyState,
+  push,
   pop,
   popN
 ) where
 
-import Value (Value)
-import Function (Function)
+import Function (Function, ArgList)
 
 -- A Stack is simply a list of Functions
 type Stack = [Function]
@@ -16,12 +16,16 @@ type Stack = [Function]
 -- complex Function and applying it to a list of argument Values
 data State = State {
   stack :: Stack,
-  arguments :: [Value]
+  args :: ArgList
 } deriving (Show)
 
 -- Create a new State with the given arguments and an empty stack
-emptyState :: [Value] -> State
-emptyState args = State [] args
+emptyState :: ArgList -> State
+emptyState xs = State{stack = [], args = xs}
+
+-- Push a Function to a Stack, returning a new Stack
+push :: Function -> Stack -> Stack
+push = (:)
 
 -- Pop the top Function from a Stack, returning the Function and a
 -- new Stack with it missing

@@ -3,8 +3,9 @@ module BuiltinStackOp (
   implementation
 ) where
 
+import Data.Function ((&))
 import StackOperation (StackOperation (..))
-import State (Stack, pop)
+import State (Stack, push, pop)
 
 -- Built-in stack operations are represented by the BuiltinStackOp type
 data BuiltinStackOp =
@@ -23,40 +24,40 @@ opDrop s = s'
 
 -- Dup pops a Function and pushes it twice
 opDup :: Stack -> Stack
-opDup s = f : f : s'
+opDup s = s' & push f & push f
   where (f, s') = pop s
 
 -- Over pops two Functions and pushes the second one, then the top
 -- one, then the second one again
 opOver :: Stack -> Stack
-opOver s = f : g : f : s''
+opOver s = s'' & push f & push g & push f
   where
-    (g, s') = pop s
     (f, s'') = pop s'
+    (g, s') = pop s
 
 -- Rot pops three Functions and pushes the second one, then the top
 -- one, then the third one
 opRot :: Stack -> Stack
-opRot s = f : h : g : s'''
+opRot s = s''' & push g & push h & push f
   where
-    (h, s') = pop s
-    (g, s'') = pop s'
     (f, s''') = pop s''
+    (g, s'') = pop s'
+    (h, s') = pop s
 
 -- Swap pops two Functions and pushes them in reverse order
 opSwap :: Stack -> Stack
-opSwap s = f : g : s''
+opSwap s = s'' & push g & push f
   where
-    (g, s') = pop s
     (f, s'') = pop s'
+    (g, s') = pop s
 
 -- Tuck pops two Functions and pushes the top one, then the second
 -- one, then the top one again
 opTuck :: Stack -> Stack
-opTuck s = g : f : g : s''
+opTuck s = s'' & push g & push f & push g
   where
-    (g, s') = pop s
     (f, s'') = pop s'
+    (g, s') = pop s
 
 -- Given a BuiltinStackOp, return the StackOperation that it represents
 implementation :: BuiltinStackOp -> StackOperation
