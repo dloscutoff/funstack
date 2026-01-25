@@ -162,12 +162,12 @@ valToList _ = Nothing
 --  If it is a Number, return the corresponding Integer
 --  If it is a Character, return its codepoint
 scalarToInteger :: ScalarValue -> Integer
-scalarToInteger (ScalarNumber x) = x
+scalarToInteger (ScalarNumber n) = n
 scalarToInteger (ScalarChar c) = ord' c
 
 -- Convert a ScalarValue to a Value of the same type
 scalarToVal :: ScalarValue -> Value
-scalarToVal (ScalarNumber x) = Number x
+scalarToVal (ScalarNumber n) = Number n
 scalarToVal (ScalarChar c) = Character c
 
 -- Convert a Haskell string to a List of Characters
@@ -233,9 +233,9 @@ flattenOnce = concatMap listOrSingleton
 -- ScalarValues
 flattenAll :: [Value] -> [ScalarValue]
 flattenAll [] = []
-flattenAll (Number x : vs) = ScalarNumber x : flattenAll vs
-flattenAll (Character c : vs) = ScalarChar c : flattenAll vs
-flattenAll (List l : vs) = flattenAll l ++ flattenAll vs
+flattenAll (Number n : xs) = ScalarNumber n : flattenAll xs
+flattenAll (Character c : xs) = ScalarChar c : flattenAll xs
+flattenAll (List l : xs) = flattenAll l ++ flattenAll xs
 
 -- Take a Value and convert it to a list of Integers:
 --  If it's a scalar, wrap it in a singleton list
