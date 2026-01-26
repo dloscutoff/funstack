@@ -8,6 +8,8 @@ and this project adheres to the
 
 ## Unreleased
 
+## 0.0.4 - 2026-01-25
+
 ### Added
 - Builtins: Max, Maximum, Min, Minimum
 - Modifiers: treeapply, treemap, treewalk
