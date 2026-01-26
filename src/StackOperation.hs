@@ -6,38 +6,37 @@ module StackOperation (
 ) where
 
 import Stack (Stack, push, pop, popN)
+import Box (Box (..))
 import Value (Value)
 import Function (Function (..), bind)
 import Modifier (Modifier, degree, modify)
 
 -- A StackOperation transforms a Stack into a new Stack
 data StackOperation = StackOperation {
-  arityIn :: Int,
-  arityOut :: Int,
   applyOperation :: Stack -> Stack
 }
 
--- Push a Function to a Stack, returning a new Stack
+-- Wrap a Function in a Box and push it to a Stack, returning a new Stack
 pushFunction :: Function -> Stack -> Stack
-pushFunction = push
+pushFunction f = push (Single f)
 
 -- Apply a Modifer to a Stack, resulting in a new Stack
--- For an n-modifier, pop n Functions from the Stack, apply the modifier
--- function to them, and push the single resulting Function back onto
--- the Stack
+-- For an n-modifier, pop n Boxes from the Stack, apply the modifier
+-- function to their contents in parallel, and push the single resulting
+-- Box back onto the Stack
 applyModifier :: Modifier -> Stack -> Stack
-applyModifier m s = push (modify m fs) s'
-  where (fs, s') = popN (degree m) s
+applyModifier m s = push (modify m <$> sequenceA bs) s'
+  where (bs, s') = popN (degree m) s
 
--- Bind a value to the top Function on the Stack:
---  If the result is a Function, push that Function back onto the Stack
---  If the result is a Constant, extract the Value and bind it to the
---   next Function on the Stack; if there are no Functions left on the
---   Stack, return the Value instead
+-- Bind a value to the top Box on the Stack:
+--  If the result is a Single Function, push it back onto the Stack
+--  If the result is a Single Constant, extract the Value and bind it to
+--   the next Box on the Stack; if there are no Boxes left on the Stack,
+--   return the Value instead
 bindValue :: Value -> Stack -> Either Value Stack
 bindValue x [] = Left x
 bindValue x s =
-  case (bind f x) of
-    Constant y -> bindValue y s'
-    f' -> Right $ push f' s'
-  where (f, s') = pop s
+  case (flip bind x <$> b) of
+    Single (Constant y) -> bindValue y s'
+    b' -> Right $ push b' s'
+  where (b, s') = pop s

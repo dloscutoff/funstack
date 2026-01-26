@@ -11,7 +11,7 @@ and this project adheres to the
 ### Added
 - Builtins: Max, Maximum, Min, Minimum
 - Modifiers: treeapply, treemap, treewalk
-- Stack operations: !drop, !over, !rot
+- Stack operations: !box, !drop, !over, !rot, !unbox
 - Aliases: Unlines (Lines)
 
 ### Fixed

@@ -9,6 +9,7 @@ import Value (Value)
 import Function (ArgList, applyFully)
 import StackOperation (applyOperation, pushFunction, applyModifier, bindValue)
 import Stack (Stack)
+import Box (extractAll)
 import Command (Command (..))
 import qualified BuiltinFunction as BF
 import qualified BuiltinModifier as BM
@@ -65,7 +66,7 @@ applyStack :: State -> Maybe Value
 applyStack State{args = []} = Nothing
 applyStack State{stack = [], args} = Just $ last args
 applyStack State{stack, args} = Just $ applyFully (composeAll stack) args
-  where composeAll = mconcat . reverse
+  where composeAll = mconcat . (>>= extractAll) . reverse
 
 -- Execute a line of Commands on an initially empty State and return
 -- the resulting Value
