@@ -8,6 +8,9 @@ and this project adheres to the
 
 ## Unreleased
 
+### Added
+- Modifiers: filter, treeunfold
+
 ## 0.0.4 - 2026-01-25
 
 ### Added

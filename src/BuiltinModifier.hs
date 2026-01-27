@@ -32,6 +32,7 @@ data BuiltinModifier =
   Compose3 |
   Compose4 |
   Dropwhile |
+  Filter |
   Fixiter |
   Fixpoint |
   Flatmap |
@@ -66,6 +67,7 @@ data BuiltinModifier =
   Takewhile |
   Treeapply |
   Treemapzip |
+  Treeunfold |
   Treewalk |
   Unfoldr |
   Until |
@@ -224,6 +226,14 @@ dropWhile' f xs
   | otherwise = drop (arity f - 1) xs
   where args = take (arity f) xs
 
+-- Given a Function and a list of Values, keep only elements from the list
+-- where applying the Function to them results in a truthy Value
+-- TODO: Is there a sensible definition for higher-arity Functions?
+filter' :: Function -> [Value] -> [Value]
+filter' f l
+  | arity f > 1 = error "Function for filter must have arity 1"
+  | otherwise = filter (valToBool . apply f) l
+
 -- Bind multiple Functions to an argument and return a list of new Functions
 parallelBind :: [Function] -> Value -> [Function]
 parallelBind fs x = [bind f x | f <- fs]
@@ -294,21 +304,21 @@ treeMapZipping f
     treeMapApply (List l) = List [apply (treeMapZipping f) x | x <- l]
     treeMapApply x = apply f x
 
--- Convert a Function to apply recursively over a nested list, interpreted
+-- Convert a Function to apply recursively over a nested List, interpreted
 -- as a tree
--- Apply the function to each level of the list after recursing
--- Leave non-lists (leaves) unchanged
+-- Apply the Function to each level of the List after recursing
+-- Leave non-Lists (leaves) unchanged
 treeApply :: Function -> Value -> Value
 treeApply f t
   | arity f > 1 = error "Function for treeapply must have arity 1"
   | (List l) <- t = apply f $ List $ map (treeApply f) l
   | leaf <- t = leaf
 
--- Convert three Functions to walk recursively over a nested list, interpreted
+-- Convert three Functions to walk recursively over a nested List, interpreted
 -- as a tree, applying the Functions:
---  - Apply the first function to each level of the list before recursing
---  - Apply the second function to non-lists (leaf nodes)
---  - Apply the third function to each level of the list after recursing
+--  - Apply the first Function to each level of the List before recursing
+--  - Apply the second Function to non-Lists (leaf nodes)
+--  - Apply the third Function to each level of the List after recursing
 treeWalk :: Function -> Function -> Function -> Value -> Value
 treeWalk f g h t
   | maximum (map arity [f, g, h]) > 1 = error "Functions for treewalk must have arity 1"
@@ -317,6 +327,18 @@ treeWalk f g h t
   where
     treeWalk' (List l) = apply h $ List $ map (treeWalk f g h) l
     treeWalk' leaf = apply g leaf
+
+-- Convert a Function to generate a nested list, interpreted as a tree,
+-- by applying it to a seed Value:
+--  - If the result is a List, recurse over the elements of the List
+--  - If not, return the result unchanged (leaf node)
+treeUnfold :: Function -> Value -> Value
+treeUnfold f t
+  | arity f > 1 = error "Function for treeunfold must have arity 1"
+  | otherwise =
+    case (apply f t) of
+      (List l) -> List $ map (treeUnfold f) l
+      leaf -> leaf
 
 -- Convert a Function to map over its first argument
 -- If the Function only takes one argument, apply it to each element of its
@@ -485,6 +507,7 @@ implementation :: BuiltinModifier -> Modifier
 implementation m = case m of
   --- 1-modifiers ---
   Dropwhile -> Modifier1 (\f -> monadic (List . dropWhile' f . listOrSingleton))
+  Filter -> Modifier1 (\f -> monadic (List . filter' f . listOrSingleton))
   Fixiter -> Modifier1 fixiter
   Fixpoint -> Modifier1 fixpoint
   Flatmap -> Modifier1 (\f -> BF.fnFlatten <> mapZipping f)
@@ -511,6 +534,7 @@ implementation m = case m of
   Takewhile -> Modifier1 modTakeWhile
   Treeapply -> Modifier1 (monadic . treeApply)
   Treemapzip -> Modifier1 treeMapZipping
+  Treeunfold -> Modifier1 (monadic . treeUnfold)
   --- 2-modifiers ---
   And -> Modifier2 (\f g -> ifThenElse f g f)
   Compose -> Modifier2 compose2
