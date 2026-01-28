@@ -18,11 +18,24 @@ runProgram' program args = do
     Nothing -> Left "Not enough arguments passed to program"
     -- TODO: error message should be generated from executeProgram
 
+-- Output the result of the program, limiting the max length to prevent
+-- infinite output
+-- TODO: Command-line flag to configure this setting
+outputResult :: String -> IO ()
+outputResult s = do
+  putStrLn truncatedOutput
+  if length truncatedOutput == maxLength
+    then IO.hPutStrLn IO.stderr "Output truncated."
+    else return ()
+  where
+    maxLength = 10000
+    truncatedOutput = take maxLength s
+
 -- Given a program and list of args, parse, execute, and output the results
 -- Put error messages on stderr and returned values on stdout
 runProgram :: String -> [String] -> IO ()
 runProgram program args = case runProgram' program args of
-  Right result -> putStrLn result
+  Right result -> outputResult result
   Left errMessage -> IO.hPutStrLn IO.stderr errMessage
 
 -- Load the program from the given file and return it

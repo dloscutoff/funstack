@@ -11,6 +11,9 @@ and this project adheres to the
 ### Added
 - Modifiers: filter, treeunfold
 
+### Changed
+- Interpreter stops outputting and displays a warning if the output is over 10,000 characters
+
 ## 0.0.4 - 2026-01-25
 
 ### Added
