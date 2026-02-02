@@ -3,7 +3,8 @@ module Main (main) where
 import qualified System.IO as IO
 import qualified System.Environment as Env
 import System.Directory (doesFileExist)
-import VerboseParser (parseProgram, parseArgs)
+import qualified VerboseParser
+--import qualified CondensedParser
 import State (executeProgram)
 
 -- Given a program and list of args, parse both and execute the program
@@ -11,8 +12,8 @@ import State (executeProgram)
 --  Otherwise, show and return the main function's return value
 runProgram' :: String -> [String] -> Either String String
 runProgram' program args = do
-  parsedProgram <- parseProgram program
-  parsedArgs <- parseArgs args
+  parsedProgram <- VerboseParser.parseProgram program
+  parsedArgs <- VerboseParser.parseArgs args
   case executeProgram parsedProgram parsedArgs of
     Just x -> Right $ show x
     Nothing -> Left "Not enough arguments passed to program"

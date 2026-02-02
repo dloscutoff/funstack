@@ -30,6 +30,7 @@ library
       BuiltinModifier
       BuiltinStackOp
       Command
+      CondensedParser
       Function
       Modifier
       Stack

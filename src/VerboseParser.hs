@@ -154,8 +154,9 @@ getRestOfLine = lift $ ReadP.munch (/= '\n')
 eof :: ReadPrec ()
 eof = lift $ ReadP.eof
 
--- To read a Token, read a built-in function or modifier, an argument
--- reference, a literal, a function or modifier alias, or a special value
+-- To read a Token, read a built-in function, modifier, or stack operation;
+-- an argument reference; a literal; a comment; a function or modifier alias;
+-- or a special value
 instance Read Token where
   readPrec = choice [
     readFunction,
