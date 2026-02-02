@@ -6,7 +6,7 @@ module State (
 
 import Data.Maybe (listToMaybe)
 import Value (Value)
-import Function (ArgList, applyFully)
+import Function (Function (..), ArgList, applyFully)
 import StackOperation (applyOperation, pushFunction, applyModifier, bindValue)
 import Stack (Stack)
 import Box (extractAll)
@@ -14,6 +14,7 @@ import Command (Command (..))
 import qualified BuiltinFunction as BF
 import qualified BuiltinModifier as BM
 import qualified BuiltinStackOp as BSO
+import qualified Interpolation as I
 
 -- State represents an intermediate stage in the process of creating a
 -- complex Function and applying it to a list of argument Values
@@ -28,13 +29,18 @@ emptyState xs = State{stack = [], args = xs}
 
 -- Apply a Command to a State, returning an updated State
 applyCommand :: Command -> State -> State
--- Push a Function to the Stack
+-- Push a built-in Function to the Stack
 applyCommand (PushFn f) s = s{stack = stack'}
   where stack' = pushFunction (BF.implementation f) (stack s)
--- Apply a Modifier to the top elements of the Stack
+-- Push an Interpolation function to the Stack
+applyCommand (PushInterpolation i) s =
+  case I.function i of
+    Constant x -> applyCommand (BindVal x) s
+    f@Function{} -> s{stack = pushFunction f (stack s)}
+-- Apply a built-in Modifier to the top elements of the Stack
 applyCommand (ModifyFn m) s = s{stack = stack'}
   where stack' = applyModifier (BM.implementation m) (stack s)
--- Apply a StackOperation to the Stack
+-- Apply a built-in StackOperation to the Stack
 applyCommand (StackCmd cmd) s = s{stack = stack'}
   where stack' = applyOperation (BSO.implementation cmd) (stack s)
 -- Bind a Value to the top element of the Stack

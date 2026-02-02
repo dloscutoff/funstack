@@ -10,6 +10,7 @@ and this project adheres to the
 
 ### Added
 - Modifiers: filter, treeunfold
+- String interpolation syntax
 
 ### Changed
 - Interpreter stops outputting and displays a warning if the output is over 10,000 characters

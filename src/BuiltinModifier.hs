@@ -1,5 +1,6 @@
 module BuiltinModifier (
   BuiltinModifier (..),
+  rcompose2,
   implementation
 ) where
 

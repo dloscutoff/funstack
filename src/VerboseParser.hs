@@ -29,9 +29,11 @@ import Command (Command (..))
 import qualified BuiltinFunction as BF
 import qualified BuiltinModifier as BM
 import qualified BuiltinStackOp as BSO
+import qualified Interpolation as I
 
 data Token =
   Function BF.BuiltinFunction |
+  Interpolation I.Interpolation |
   Modifier BM.BuiltinModifier |
   StackOp BSO.BuiltinStackOp |
   Argument Int |
@@ -146,6 +148,20 @@ getSpecialValue = lift $ do
 getNonSpaceString :: ReadPrec String
 getNonSpaceString = lift $ ReadP.munch1 $ not . isSpace
 
+-- Match a backtick-wrapped string (interpolation literal)
+-- Backticks cannot be used within the string unless escaped with \
+getBacktickLiteral :: ReadPrec [String]
+getBacktickLiteral = lift $ do
+  '`' <- ReadP.get
+  ss <- ReadP.many getAtom
+  '`' <- ReadP.get
+  pure ss
+  where
+    getAtom = ReadP.choice [
+      do b <- ReadP.char '\\'; c <- ReadP.get; pure (b : c : ""),
+      (: "") <$> ReadP.satisfy (`notElem` "`\\")
+      ]
+
 -- Match the rest of the string up to (but not including) the next newline
 getRestOfLine :: ReadPrec String
 getRestOfLine = lift $ ReadP.munch (/= '\n')
@@ -165,6 +181,7 @@ instance Read Token where
     readArgReference,
     readLiteral,
     readCharCodeLiteral,
+    readInterpolation,
     readComment,
     readFunctionAlias,
     readModifierAlias,
@@ -212,6 +229,12 @@ instance Read Token where
         charCode <- getDigits
         case readMaybe charCode of
           Just n -> pure (Literal $ Character $ chr' n)
+          Nothing -> pfail
+      -- Match an interpolation string like `abc$xyz`
+      readInterpolation = do
+        components <- getBacktickLiteral
+        case sequence $ map readMaybe components of
+          Just i -> pure $ Interpolation $ I.condense i
           Nothing -> pfail
       -- Match a line comment starting with ;
       readComment = do
@@ -263,9 +286,10 @@ instance Read TokenList where
           restOfLine <- getRestOfLine
           skipWholeString
           pure $ TokenList $ Left $ case badToken of
-            ('"' : _) -> "Unterminated string literal: " ++ badToken ++ restOfLine
-            ('\'' : _) -> "Unterminated character literal: " ++ badToken
-            ('[' : _) -> "Invalid list literal: " ++ badToken ++ restOfLine
+            ('"' : _) -> "Malformed string literal: " ++ badToken ++ restOfLine
+            ('\'' : _) -> "Malformed character literal: " ++ badToken
+            ('`' : _) -> "Malformed interpolation string literal: " ++ badToken ++ restOfLine
+            ('[' : _) -> "Malformed list literal: " ++ badToken ++ restOfLine
             _ -> "Unrecognized token: " ++ badToken
         -- If we are at the end of input, return a successful empty token list
         endOfInput = eof >> pure (TokenList $ Right [])
@@ -276,6 +300,7 @@ instance Read TokenList where
 parseTokens :: [Token] -> Either String [[Command]]
 parseTokens tokens = Right [mapMaybe tokenToCommand tokens] where
   tokenToCommand (Function f) = Just $ PushFn f
+  tokenToCommand (Interpolation i) = Just $ PushInterpolation i
   tokenToCommand (Modifier m) = Just $ ModifyFn m
   tokenToCommand (StackOp o) = Just $ StackCmd o
   tokenToCommand (Argument a) = Just $ BindArg a

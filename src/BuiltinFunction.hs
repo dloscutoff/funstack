@@ -2,6 +2,8 @@ module BuiltinFunction (
   BuiltinFunction (..),
   windows,
   fnFlatten,
+  fnConcat,
+  fnStringify,
   fnNot,
   fnPair,
   fnSame,
@@ -314,6 +316,12 @@ linesUnlines = linesUnlines' . valToDisplay
 fnFlatten :: Function
 fnFlatten = monadic $ List . flattenOnce . listOrSingleton
 
+fnConcat :: Function
+fnConcat = dyadic (\x y -> List $ listOrSingleton x ++ listOrSingleton y)
+
+fnStringify :: Function
+fnStringify = monadic $ stringToVal . valToString
+
 fnNot :: Function
 fnNot = monadic $ boolToVal . not . valToBool
 
@@ -366,7 +374,7 @@ implementation f = case f of
   Sign -> numberMathMonad signum
   Sort -> monadic $ List . sort . listOrSingleton
   Square -> numberMathMonad (\x -> x * x)
-  Stringify -> monadic $ stringToVal . valToString
+  Stringify -> fnStringify
   Sum -> monadic $ Number . sum . toIntegerList
   Tail -> monadic $ List . drop 1 . listOrSingleton
   Tails -> monadic $ List . map List . tails . listOrSingleton
@@ -379,7 +387,7 @@ implementation f = case f of
   AtCycle -> numAndListDyad $ flip indexCycle
   Chunks -> dyadic (\x y -> List $ map List $ chunks (cycle' $ toIntegerList x) (listOrSingleton y))
   Compare -> dyadic (\x y -> orderingToVal $ y `compare` x)
-  Concat -> dyadic (\x y -> List $ listOrSingleton x ++ listOrSingleton y)
+  Concat -> fnConcat
   Cons -> dyadic (\x y -> List $ x : listOrSingleton y)
   Consr -> dyadic (\x y -> List $ listOrSingleton y ++ [x])
   Const -> dyadic const
