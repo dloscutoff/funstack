@@ -106,6 +106,9 @@ specialValues = Map.fromList [
 -- Helper ReadPrec parsers for the Read instances below:
 
 -- Skip over zero or more whitespace characters
+-- ReadP calls this skipSpaces, but we'll call it skipWhitespace
+-- because we want to use skipSpaces for skipping whitespace that
+-- doesn't include newlines
 skipWhitespace :: ReadPrec ()
 skipWhitespace = lift ReadP.skipSpaces
 
@@ -146,6 +149,10 @@ getNonSpaceString = lift $ ReadP.munch1 $ not . isSpace
 -- Match the rest of the string up to (but not including) the next newline
 getRestOfLine :: ReadPrec String
 getRestOfLine = lift $ ReadP.munch (/= '\n')
+
+-- Match the end of input
+eof :: ReadPrec ()
+eof = lift $ ReadP.eof
 
 -- To read a Token, read a built-in function or modifier, an argument
 -- reference, a literal, a function or modifier alias, or a special value
@@ -208,7 +215,7 @@ instance Read Token where
       -- Match a line comment starting with ;
       readComment = do
         ';' <- get
-        _ <- skipSpaces
+        skipSpaces
         Comment <$> getRestOfLine
       -- Match an alias for a built-in function
       readFunctionAlias = do
@@ -235,7 +242,7 @@ instance Read Token where
 --  Hit the end of input and return success
 instance Read TokenList where
   readPrec = do
-    _ <- skipWhitespace
+    skipWhitespace
     choice [
       readNextToken <++ badTokenError,
       endOfInput
@@ -252,23 +259,19 @@ instance Read TokenList where
         -- string
         badTokenError = do
           badToken <- getNonSpaceString
-          _ <- skipWholeString
-          -- TODO: More granular error messages depending on what badToken
-          -- is? E.g. "Unterminated string literal" if it starts with a quote
-          pure (TokenList $ Left $ "While scanning, unrecognized token: " ++ show badToken)
+          restOfLine <- getRestOfLine
+          skipWholeString
+          pure $ TokenList $ Left $ case badToken of
+            ('"' : _) -> "Unterminated string literal: " ++ badToken ++ restOfLine
+            ('\'' : _) -> "Unterminated character literal: " ++ badToken
+            ('[' : _) -> "Invalid list literal: " ++ badToken ++ restOfLine
+            _ -> "Unrecognized token: " ++ badToken
         -- If we are at the end of input, return a successful empty token list
-        endOfInput = pure (TokenList $ Right [])
-
--- Given an error message and a Maybe, return an Either String
---  If the second argument is Just x, return Right x
---  If the second argument is Nothing, return Left message
-maybeToEither :: String -> Maybe a -> Either String a
-maybeToEither _ (Just x) = Right x
-maybeToEither message Nothing = Left message
+        endOfInput = eof >> pure (TokenList $ Right [])
 
 -- Parse a list of Tokens into a list of lists of Commands
 -- For now, just put all the tokens in a single function
--- TODO: more-complex program structures
+-- TODO: more-complex program structures?
 parseTokens :: [Token] -> Either String [[Command]]
 parseTokens tokens = Right [mapMaybe tokenToCommand tokens] where
   tokenToCommand (Function f) = Just $ PushFn f
@@ -293,7 +296,9 @@ parseProgram = (parseTokens =<<) . scanProgram
 
 -- Parse an argument as either a Value or an error message
 parseArg :: String -> Either String Value
-parseArg arg = maybeToEither ("Could not parse argument " ++ arg) (readMaybe arg)
+parseArg arg = case readMaybe arg of
+  Just x -> Right x
+  Nothing -> Left $ "Could not parse argument " ++ arg
 
 -- Parse a list of arguments as a list of Values or an error message
 parseArgs :: [String] -> Either String [Value]

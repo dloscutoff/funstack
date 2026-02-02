@@ -13,6 +13,7 @@ and this project adheres to the
 
 ### Changed
 - Interpreter stops outputting and displays a warning if the output is over 10,000 characters
+- Specific error messages for unterminated string, character, and list literals
 
 ## 0.0.4 - 2026-01-25
 
