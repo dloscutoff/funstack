@@ -9,7 +9,8 @@ and this project adheres to the
 ## Unreleased
 
 ### Added
-- Modifiers: filter, treeunfold
+- Modifiers: arity2, arity3, filter, treeunfold
+- Stack operations: !dup2, !swap2
 - String interpolation syntax
 
 ### Changed

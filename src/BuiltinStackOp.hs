@@ -13,9 +13,11 @@ data BuiltinStackOp =
   Box |
   Drop |
   Dup |
+  Dup2 |
   Over |
   Rot |
   Swap |
+  Swap2 |
   Tuck |
   Unbox
   deriving (Show, Read)
@@ -37,6 +39,13 @@ opDrop s = s'
 opDup :: Stack -> Stack
 opDup s = s' & push f & push f
   where (f, s') = pop s
+
+-- Dup2 pops a pair of items and pushes the pair twice
+opDup2 :: Stack -> Stack
+opDup2 s = s'' & push f & push g & push f & push g
+  where
+    (f, s'') = pop s'
+    (g, s') = pop s
 
 -- Over pops two items and pushes the second one, then the top
 -- one, then the second one again
@@ -62,6 +71,15 @@ opSwap s = s'' & push g & push f
     (f, s'') = pop s'
     (g, s') = pop s
 
+-- Swap2 pops two pairs of items and pushes the pairs in reverse order
+opSwap2 :: Stack -> Stack
+opSwap2 s = s'''' & push h & push i & push f & push g
+  where
+    (f, s'''') = pop s'''
+    (g, s''') = pop s''
+    (h, s'') = pop s'
+    (i, s') = pop s
+
 -- Tuck pops two items and pushes the top one, then the second
 -- one, then the top one again
 opTuck :: Stack -> Stack
@@ -86,8 +104,10 @@ implementation o = case o of
   Box -> StackOperation opBox
   Drop -> StackOperation opDrop
   Dup -> StackOperation opDup
+  Dup2 -> StackOperation opDup2
   Over -> StackOperation opOver
   Rot -> StackOperation opRot
   Swap -> StackOperation opSwap
+  Swap2 -> StackOperation opSwap2
   Tuck -> StackOperation opTuck
   Unbox -> StackOperation opUnbox

@@ -28,6 +28,8 @@ import qualified BuiltinFunction as BF
 -- Built-in modifiers are represented by the BuiltinModifier type
 data BuiltinModifier =
   And |
+  Arity2 |
+  Arity3 |
   Branch |
   Compose |
   Compose3 |
@@ -507,6 +509,8 @@ modUnfoldR f g = collectArgs (arity f `max` arity g) (List . unfoldr' f g)
 implementation :: BuiltinModifier -> Modifier
 implementation m = case m of
   --- 1-modifiers ---
+  Arity2 -> Modifier1 $ convertArity 2
+  Arity3 -> Modifier1 $ convertArity 3
   Dropwhile -> Modifier1 (\f -> monadic (List . dropWhile' f . listOrSingleton))
   Filter -> Modifier1 (\f -> monadic (List . filter' f . listOrSingleton))
   Fixiter -> Modifier1 fixiter
