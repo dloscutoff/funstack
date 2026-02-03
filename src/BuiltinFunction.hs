@@ -15,6 +15,7 @@ import Data.List (
   tails,
   sort,
   nub,
+  group,
   subsequences,
   unfoldr,
   genericLength,
@@ -89,6 +90,7 @@ data BuiltinFunction =
   FromBase |
   Greater |
   GreaterEqual |
+  Group |
   Halve |
   Head |
   IDiv |
@@ -347,6 +349,7 @@ implementation f = case f of
   FlattenAll -> monadic $ List . map scalarToVal . flattenAll . listOrSingleton
   From0 -> monadic $ mapOverList $ exclRange (ScalarNumber 0)
   From1 -> monadic $ mapOverList $ exclRange (ScalarNumber 1)
+  Group -> monadic $ List . map List . group . listOrSingleton
   Halve -> numberMathMonad (`div` 2)
   Head -> monadic $ head . listOrSingleton
   IFrom0 -> monadic $ mapOverList $ inclRange (ScalarNumber 0)
