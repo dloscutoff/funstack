@@ -138,6 +138,22 @@ skipSpaces = lift $ ReadP.munch (\c -> isSpace c && c /= '\n') >> pure ()
 getDigit :: ReadPrec Char
 getDigit = lift $ ReadP.satisfy isDigit
 
+-- Helper ReadP function
+-- Match a run of digits, possibly with a leading minus sign
+getNumber' :: ReadP.ReadP String
+getNumber' = do
+  sign <- ReadP.option "" (ReadP.string "-")
+  digits <- ReadP.munch1 isDigit
+  pure $ sign ++ digits
+
+-- Match exactly one number
+getNumber :: ReadPrec String
+getNumber = lift getNumber'
+
+-- Match zero or more numbers, separated by commas
+getNumbers :: ReadPrec [String]
+getNumbers = lift $ ReadP.sepBy getNumber' (ReadP.char ',')
+
 -- Match the rest of the string
 getRestOfString :: ReadPrec String
 getRestOfString = lift $ ReadP.munch1 (const True)
@@ -164,6 +180,7 @@ instance Read Token where
     readStackOpAlias,
     readSpecialValue,
     readDigitLiteral,
+    readNumberLiteral <++ readNumberListLiteral,
     readArgReference
     ] where
       -- Match an alias for a built-in function
@@ -177,9 +194,27 @@ instance Read Token where
       -- Match a digit literal like #1
       readDigitLiteral = do
         '#' <- get
-        number <- getDigit
-        case readMaybe [number] of
+        digit <- getDigit
+        case readMaybe [digit] of
           Just n -> pure (Literal $ Number n)
+          Nothing -> pfail
+      -- Match a numeric literal like #"-123"
+      readNumberLiteral = do
+        '#' <- get
+        '"' <- get
+        number <- getNumber
+        '"' <- get
+        case readMaybe number of
+          Just n -> pure (Literal $ Number n)
+          Nothing -> pfail
+      -- Match a numeric list literal like #"-12,345"
+      readNumberListLiteral = do
+        '#' <- get
+        '"' <- get
+        numbers <- getNumbers
+        '"' <- get
+        case sequence (map readMaybe numbers) of
+          Just ns -> pure (Literal $ List $ map Number ns)
           Nothing -> pfail
       -- Match an argument reference like @1
       readArgReference = do
