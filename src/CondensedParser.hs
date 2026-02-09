@@ -19,9 +19,11 @@ import Command (Command (..))
 import qualified BuiltinFunction as BF
 import qualified BuiltinModifier as BM
 import qualified BuiltinStackOp as BSO
+import qualified Interpolation as I
 
 data Token =
   Function BF.BuiltinFunction |
+  Interpolation I.Interpolation |
   Modifier BM.BuiltinModifier |
   StackOp BSO.BuiltinStackOp |
   Argument Int |
@@ -138,7 +140,7 @@ skipSpaces = lift $ ReadP.munch (\c -> isSpace c && c /= '\n') >> pure ()
 getDigit :: ReadPrec Char
 getDigit = lift $ ReadP.satisfy isDigit
 
--- Helper ReadP function
+-- Helper ReadP parser
 -- Match a run of digits, possibly with a leading minus sign
 getNumber' :: ReadP.ReadP String
 getNumber' = do
@@ -153,6 +155,27 @@ getNumber = lift getNumber'
 -- Match zero or more numbers, separated by commas
 getNumbers :: ReadPrec [String]
 getNumbers = lift $ ReadP.sepBy getNumber' (ReadP.char ',')
+
+-- Helper ReadP parser
+-- Match either a half-byte or a full-byte character within a string literal
+-- Full-byte printable ASCII characters are preceded by '
+-- Newline is a full-byte character also, encoded as nl
+getStringCharacter' :: ReadP.ReadP Char
+getStringCharacter' = ReadP.choice [
+  ReadP.choice (map ReadP.char halfByteCharacters),
+  ReadP.char '\'' >> ReadP.choice (map ReadP.char fullByteCharacters),
+  ReadP.string "~n" >> pure '\n'
+  ]
+  where
+    halfByteCharacters = " /-\\|.+_"
+    fullByteCharacters = [c | c <- ['!'..'~'], c `notElem` halfByteCharacters]
+
+-- Match the contents of a string literal, possibly with interpolations
+getInterpolationComponents :: ReadPrec [I.InterpolationComponent]
+getInterpolationComponents = lift $ ReadP.many $ ReadP.choice [
+  fmap (I.LiteralString . pure) getStringCharacter',
+  ReadP.string "$" >> pure I.Interpolate
+  ]
 
 -- Match the rest of the string
 getRestOfString :: ReadPrec String
@@ -181,6 +204,7 @@ instance Read Token where
     readSpecialValue,
     readDigitLiteral,
     readNumberLiteral <++ readNumberListLiteral,
+    readInterpolation,
     readArgReference
     ] where
       -- Match an alias for a built-in function
@@ -216,6 +240,13 @@ instance Read Token where
         case sequence (map readMaybe numbers) of
           Just ns -> pure (Literal $ List $ map Number ns)
           Nothing -> pfail
+      -- Match an interpolation/string literal like $"'a'b-$'c"
+      readInterpolation = do
+        '$' <- get
+        '"' <- get
+        components <- getInterpolationComponents
+        '"' <- get
+        pure (Interpolation $ I.condense components)
       -- Match an argument reference like @1
       readArgReference = do
         '@' <- get
@@ -256,6 +287,7 @@ instance Read TokenList where
 parseTokens :: [Token] -> Either String [[Command]]
 parseTokens tokens = Right [mapMaybe tokenToCommand tokens] where
   tokenToCommand (Function f) = Just $ PushFn f
+  tokenToCommand (Interpolation i) = Just $ PushInterpolation i
   tokenToCommand (Modifier m) = Just $ ModifyFn m
   tokenToCommand (StackOp o) = Just $ StackCmd o
   tokenToCommand (Argument a) = Just $ BindArg a
