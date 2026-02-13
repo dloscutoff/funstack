@@ -156,6 +156,10 @@ getNumber = lift getNumber'
 getNumbers :: ReadPrec [String]
 getNumbers = lift $ ReadP.sepBy getNumber' (ReadP.char ',')
 
+-- Match non-space printable ASCII character
+getNonSpaceChar :: ReadPrec Char
+getNonSpaceChar = lift $ ReadP.choice $ map ReadP.char ['!'..'~']
+
 -- Helper ReadP parser
 -- Match either a half-byte or a full-byte character within a string literal
 -- Full-byte printable ASCII characters are preceded by '
@@ -203,6 +207,7 @@ instance Read Token where
     readStackOpAlias,
     readSpecialValue,
     readDigitLiteral,
+    readCharLiteral,
     readNumberLiteral <++ readNumberListLiteral,
     readInterpolation,
     readArgReference
@@ -222,6 +227,13 @@ instance Read Token where
         case readMaybe [digit] of
           Just n -> pure (Literal $ Number n)
           Nothing -> pfail
+      -- Match a character literal like ''x'
+      readCharLiteral = do
+        '\'' <- get
+        '\'' <- get
+        char <- getNonSpaceChar
+        '\'' <- get
+        pure (Literal $ Character char)
       -- Match a numeric literal like #"-123"
       readNumberLiteral = do
         '#' <- get
