@@ -73,9 +73,9 @@ functionAliases = [
   ("Ti", BF.Times),
   ("Tl", BF.Tail),
   ("Wr", BF.Wrap),
-  ("_", BF.Id),
-  (":", BF.Cons),
-  ("+", BF.Plus)
+  ("C", BF.Cons),
+  ("P", BF.Plus),
+  ("I", BF.Id)
   ]
 
 -- Condensed names for built-in modifiers
@@ -84,21 +84,21 @@ modifierAliases = [
   ("?&", BM.And),
   ("/\\", BM.Branch),
   ("(?", BM.Dropwhile),
-  ("{-", BM.Foldr),
+  ("{+", BM.Foldr),
   ("{{", BM.Foldr1),
   ("<>", BM.Fork),
   ("(>", BM.Hook),
   ("??", BM.If),
-  (";;", BM.Iterate),
+  ("::", BM.Iterate),
   ("?!", BM.Not),
   ("?|", BM.Or),
-  ("]]", BM.Scanl),
-  ("-]", BM.Scanl1),
+  ("+]", BM.Scanl),
+  ("]]", BM.Scanl1),
   ("()", BM.Self),
   ("%%", BM.Table),
   (")?", BM.Takewhile),
-  (";%", BM.Unfoldr),
-  (";?", BM.While),
+  (":%", BM.Unfoldr),
+  (":?", BM.While),
   (".", BM.Compose),
   ("~", BM.Flip),
   ("*", BM.Mapzip)
