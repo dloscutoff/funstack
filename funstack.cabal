@@ -34,6 +34,7 @@ library
       Function
       Interpolation
       Modifier
+      Number
       Stack
       StackOperation
       State
