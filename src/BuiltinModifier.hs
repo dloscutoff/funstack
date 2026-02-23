@@ -176,13 +176,13 @@ convertArity a' f
   | a' == arity f = f
   | otherwise = collectArgs a' (applyFully f)
 
--- Modify a Function to generate an infinite List by repeated appliction
+-- Modify a Function to generate an infinite ValList by repeated appliction
 -- The new Function has the same arity (call it N) as the original Function
--- The resulting List begins with the arguments unchanged; thereafter, each
+-- The resulting ValList begins with the arguments unchanged; thereafter, each
 -- element is the result of applying the Function over the preceding N
 -- elements
 iterate' :: Function -> Function
-iterate' f = collectArgs (arity f) (List . unfoldr iterateStep)
+iterate' f = collectArgs (arity f) (ValList . unfoldr iterateStep)
   where
     iterateStep args = Just (head args, tail args ++ [newVal])
       where newVal = applyFully f args
@@ -191,7 +191,7 @@ iterate' f = collectArgs (arity f) (List . unfoldr iterateStep)
 -- For higher-arity Functions, the entire argument list must remain unchanged
 -- to stop the iteration
 fixiter :: Function -> Function
-fixiter f = collectArgs (arity f) (List . fixiterApply)
+fixiter f = collectArgs (arity f) (ValList . fixiterApply)
   where
     fixiterApply args
       | all (== newVal) args = args
@@ -242,27 +242,27 @@ parallelBind :: [Function] -> Value -> [Function]
 parallelBind fs x = [bind f x | f <- fs]
 
 -- Bind multiple Functions to an argument and return a list of new Functions
--- If the argument is a List, zip the Functions with the elements of the
+-- If the argument is a ValList, zip the Functions with the elements of the
 -- argument; otherwise, bind each Function to the argument
 zipBind :: [Function] -> Value -> [Function]
-zipBind fs (List l) = zipWith bind fs l
+zipBind fs (ValList l) = zipWith bind fs l
 zipBind fs x = parallelBind fs x
 
--- Apply multiple arity-1 Functions to an argument and return a List of
+-- Apply multiple arity-1 Functions to an argument and return a ValList of
 -- the results
 parallelApply :: [Function] -> Value -> Value
-parallelApply fs x = List [apply f x | f <- fs]
+parallelApply fs x = ValList [apply f x | f <- fs]
 
--- Apply multiple arity-1 Functions to an argument and return a List of
--- the results; if the argument is a List, zip the Functions with the
+-- Apply multiple arity-1 Functions to an argument and return a ValList of
+-- the results; if the argument is a ValList, zip the Functions with the
 -- elements of the argument; otherwise, apply each Function to the argument
 zipApply :: [Function] -> Value -> Value
-zipApply fs (List l) = List $ zipWith apply fs l
+zipApply fs (ValList l) = ValList $ zipWith apply fs l
 zipApply fs x = parallelApply fs x
 
 -- Given an arity and a list of Functions of that arity, turn them into a
 -- single Function that applies each of the constituent Functions in parallel
--- and returns a List of the results
+-- and returns a ValList of the results
 parallel :: Arity -> [Function] -> Function
 parallel a fs
   | a < 1 = error $ "Cannot call parallel with arity " ++ show a ++ " less than 1"
@@ -271,7 +271,7 @@ parallel a fs
 
 -- Given an arity and a list of Functions of that arity, turn them into a
 -- single Function that applies each of the constituent Functions in parallel
--- and returns a List of the results
+-- and returns a ValList of the results
 zipParallel :: Arity -> [Function] -> Function
 zipParallel a fs
   | a < 1 = error $ "Cannot call zipParallel with arity " ++ show a ++ " less than 1"
@@ -281,77 +281,77 @@ zipParallel a fs
 -- Convert a Function to map over its arguments
 -- If the Function takes multiple arguments, zip the argument lists
 -- together (truncating to the length of the shortest one)
--- However, if an argument is not a List, it is used across the board
--- If all arguments are non-Lists, the result is a singleton List
+-- However, if an argument is not a ValList, it is used across the board
+-- If all arguments are non-ValLists, the result is a singleton ValList
 mapZipping :: Function -> Function
 mapZipping f
   | arity f == 1 =
-      monadic (\xs -> List [apply f x | x <- listOrSingleton xs])
+      monadic (\xs -> ValList [apply f x | x <- listOrSingleton xs])
   | otherwise = Function (arity f) mapBind
   where
-    mapBind (List l) = zipParallel (arity f - 1) (map (bind f) l)
+    mapBind (ValList l) = zipParallel (arity f - 1) (map (bind f) l)
     mapBind x = mapZipping $ bind f x
 
 -- Convert a Function to map recursively over its list arguments (trees)
 -- and apply directly to its non-list arguments (leaves)
 -- If the Function takes multiple arguments, zip the argument lists
 -- together (truncating to the length of the shortest one)
--- However, if an argument is not a List, it is used across the board
+-- However, if an argument is not a ValList, it is used across the board
 treeMapZipping :: Function -> Function
 treeMapZipping f
   | arity f == 1 = monadic treeMapApply
   | otherwise = Function (arity f) treeMapBind
   where
-    treeMapBind (List l) = zipParallel (arity f - 1) (map (bind $ treeMapZipping f) l)
+    treeMapBind (ValList l) = zipParallel (arity f - 1) (map (bind $ treeMapZipping f) l)
     treeMapBind x = treeMapZipping $ bind f x
-    treeMapApply (List l) = List [apply (treeMapZipping f) x | x <- l]
+    treeMapApply (ValList l) = ValList [apply (treeMapZipping f) x | x <- l]
     treeMapApply x = apply f x
 
--- Convert a Function to apply recursively over a nested List, interpreted
+-- Convert a Function to apply recursively over a nested ValList, interpreted
 -- as a tree
--- Apply the Function to each level of the List after recursing
--- Leave non-Lists (leaves) unchanged
+-- Apply the Function to each level of the ValList after recursing
+-- Leave non-ValLists (leaves) unchanged
 treeApply :: Function -> Value -> Value
 treeApply f t
   | arity f > 1 = error "Function for treeapply must have arity 1"
-  | (List l) <- t = apply f $ List $ map (treeApply f) l
+  | (ValList l) <- t = apply f $ ValList $ map (treeApply f) l
   | leaf <- t = leaf
 
--- Convert three Functions to walk recursively over a nested List, interpreted
+-- Convert three Functions to walk recursively over a nested ValList, interpreted
 -- as a tree, applying the Functions:
---  - Apply the first Function to each level of the List before recursing
---  - Apply the second Function to non-Lists (leaf nodes)
---  - Apply the third Function to each level of the List after recursing
+--  - Apply the first Function to each level of the ValList before recursing
+--  - Apply the second Function to non-ValLists (leaf nodes)
+--  - Apply the third Function to each level of the ValList after recursing
 treeWalk :: Function -> Function -> Function -> Value -> Value
 treeWalk f g h t
   | maximum (map arity [f, g, h]) > 1 = error "Functions for treewalk must have arity 1"
-  | (List _) <- t = treeWalk' $ apply f t
+  | (ValList _) <- t = treeWalk' $ apply f t
   | otherwise = treeWalk' t
   where
-    treeWalk' (List l) = apply h $ List $ map (treeWalk f g h) l
+    treeWalk' (ValList l) = apply h $ ValList $ map (treeWalk f g h) l
     treeWalk' leaf = apply g leaf
 
 -- Convert a Function to generate a nested list, interpreted as a tree,
 -- by applying it to a seed Value:
---  - If the result is a List, recurse over the elements of the List
+--  - If the result is a ValList, recurse over the elements of the ValList
 --  - If not, return the result unchanged (leaf node)
 treeUnfold :: Function -> Value -> Value
 treeUnfold f t
   | arity f > 1 = error "Function for treeunfold must have arity 1"
   | otherwise =
     case (apply f t) of
-      (List l) -> List $ map (treeUnfold f) l
+      (ValList l) -> ValList $ map (treeUnfold f) l
       leaf -> leaf
 
 -- Convert a Function to map over its first argument
 -- If the Function only takes one argument, apply it to each element of its
--- argument, pair the result with the original element, and return a List
+-- argument, pair the result with the original element, and return a ValList
 -- of those pairs
--- If the first argument is not a List, wrap it in a singleton List
+-- If the first argument is not a ValList, wrap it in a singleton ValList
 mapLeft :: Function -> Function
 mapLeft f
   | a == 1 =
-      monadic (\xs -> List [List [apply f x, x] | x <- listOrSingleton xs])
+      monadic (\xs -> ValList [ValList [apply f x, x] | x <- listOrSingleton xs])
   | otherwise =
       Function a (\xs -> parallel (a - 1) [bind f x | x <- listOrSingleton xs])
   where a = arity f
@@ -359,23 +359,23 @@ mapLeft f
 -- Convert a Function to map over its last argument
 -- If the Function only takes one argument, pair each element of its original
 -- argument with the result of applying the function to that element, and 
--- return a List of those pairs
--- If the first argument is not a List, wrap it in a singleton List
+-- return a ValList of those pairs
+-- If the first argument is not a ValList, wrap it in a singleton ValList
 mapRight :: Function -> Function
 mapRight f
   | a == 1 =
-      monadic (\xs -> List [List [x, apply f x] | x <- listOrSingleton xs])
+      monadic (\xs -> ValList [ValList [x, apply f x] | x <- listOrSingleton xs])
   | a == 2 =
-      dyadic (\x ys -> List [apply2 f x y | y <- listOrSingleton ys])
+      dyadic (\x ys -> ValList [apply2 f x y | y <- listOrSingleton ys])
   | otherwise = Function a (\x -> mapRight $ bind f x)
   where a = arity f
 
--- Convert an arity-N Function to map over size-N windows from a List
+-- Convert an arity-N Function to map over size-N windows from a ValList
 mapWindows :: Function -> Function
-mapWindows f = monadic (\xs -> List $ map (applyFully f) $ windows (arity f) (listOrSingleton xs))
+mapWindows f = monadic (\xs -> ValList $ map (applyFully f) $ windows (arity f) (listOrSingleton xs))
 
 -- Convert an arity-N Function to a Function that creates a depth-N nested
--- List containing the results of applying the original Function to every
+-- ValList containing the results of applying the original Function to every
 -- combination of values from its arguments (N-dimensional outer product)
 table :: Function -> Function
 table f
@@ -496,14 +496,14 @@ unfoldr' f g args
 -- Given a Function, apply the takewhile modifier to it and return a
 -- new Function
 modTakeWhile :: Function -> Function
-modTakeWhile f = monadic $ List . takeWhile' f . listOrSingleton
+modTakeWhile f = monadic $ ValList . takeWhile' f . listOrSingleton
 
 -- Given two Functions, apply the unfoldr modifier to them and return a
 -- new Function
 -- The arity of the combined Function is the max of the arities of
 -- the two Functions
 modUnfoldR :: Function -> Function -> Function
-modUnfoldR f g = collectArgs (arity f `max` arity g) (List . unfoldr' f g)
+modUnfoldR f g = collectArgs (arity f `max` arity g) (ValList . unfoldr' f g)
 
 -- Given a BuiltinModifier, return the Modifier that it represents
 implementation :: BuiltinModifier -> Modifier
@@ -511,8 +511,8 @@ implementation m = case m of
   --- 1-modifiers ---
   Arity2 -> Modifier1 $ convertArity 2
   Arity3 -> Modifier1 $ convertArity 3
-  Dropwhile -> Modifier1 (\f -> monadic (List . dropWhile' f . listOrSingleton))
-  Filter -> Modifier1 (\f -> monadic (List . filter' f . listOrSingleton))
+  Dropwhile -> Modifier1 (\f -> monadic (ValList . dropWhile' f . listOrSingleton))
+  Filter -> Modifier1 (\f -> monadic (ValList . filter' f . listOrSingleton))
   Fixiter -> Modifier1 fixiter
   Fixpoint -> Modifier1 fixpoint
   Flatmap -> Modifier1 (\f -> BF.fnFlatten <> mapZipping f)
@@ -529,10 +529,10 @@ implementation m = case m of
   Not -> Modifier1 (BF.fnNot <>)
   Rmap -> Modifier1 mapRight
   Rotate -> Modifier1 rotateArgs
-  Scanl -> Modifier1 (\f -> dyadic (\x ys -> List $ scanl' f x $ listOrSingleton ys))
-  Scanl1 -> Modifier1 (\f -> monadic (\xs -> List $ scanl1' f $ listOrSingleton xs))
-  Scanr -> Modifier1 (\f -> dyadic (\x ys -> List $ scanr' f x $ listOrSingleton ys))
-  Scanr1 -> Modifier1 (\f -> monadic (\xs -> List $ scanr1' f $ listOrSingleton xs))
+  Scanl -> Modifier1 (\f -> dyadic (\x ys -> ValList $ scanl' f x $ listOrSingleton ys))
+  Scanl1 -> Modifier1 (\f -> monadic (\xs -> ValList $ scanl1' f $ listOrSingleton xs))
+  Scanr -> Modifier1 (\f -> dyadic (\x ys -> ValList $ scanr' f x $ listOrSingleton ys))
+  Scanr1 -> Modifier1 (\f -> monadic (\xs -> ValList $ scanr1' f $ listOrSingleton xs))
   Self -> Modifier1 $ convertArity 1
   Selftable -> Modifier1 $ convertArity 1 . table
   Table -> Modifier1 table

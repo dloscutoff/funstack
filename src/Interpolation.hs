@@ -47,4 +47,4 @@ function (ic : ics)
   | LiteralString s <- ic = bind fnConcat (stringToVal s) <> f'
   where
     f' = function ics
-function [] = Constant $ List []
+function [] = Constant $ ValList []

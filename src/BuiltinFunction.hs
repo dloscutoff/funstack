@@ -161,17 +161,17 @@ boolToInteger = toInteger . fromEnum
 -- Given two ScalarValues, generate an inclusive range from the first to
 -- the second, coercing to the type of the second argument
 inclRange :: ScalarValue -> ScalarValue -> Value
-inclRange x (ScalarNumber y) = List $ map Number [scalarToInteger x..y]
-inclRange x (ScalarChar c) = List $ map Character [chr' n..c]
+inclRange x (ScalarNumber y) = ValList $ map ValNumber [scalarToInteger x..y]
+inclRange x (ScalarChar c) = ValList $ map ValChar [chr' n..c]
   where n = max 0 (scalarToInteger x)
 
 -- Given two ScalarValues, generate an exclusive range from the first to
 -- the second, coercing to the type of the second argument
 exclRange :: ScalarValue -> ScalarValue -> Value
-exclRange x (ScalarNumber y) = List $ map Number [scalarToInteger x..y-1]
+exclRange x (ScalarNumber y) = ValList $ map ValNumber [scalarToInteger x..y-1]
 exclRange x (ScalarChar c)
-  | c == minBound = List []
-  | otherwise = List $ map Character [chr' n..pred c]
+  | c == minBound = ValList []
+  | otherwise = ValList $ map ValChar [chr' n..pred c]
   where n = max 0 (scalarToInteger x)
 
 -- Take the first n elements from a list; if n is negative, take elements
@@ -291,35 +291,35 @@ fromBase b ds = foldr (\d n -> n * b + d) 0 ds
 
 -- Base conversion function that takes an Integer and a list of Values
 -- and returns a Value
--- Flattens second argument and treats Characters as their charcodes
+-- Flattens second argument and treats ValChars as their charcodes
 valsFromBase :: Integer -> [Value] -> Value
-valsFromBase b ds = Number $ fromBase b $ map scalarToInteger $ flattenAll ds
+valsFromBase b ds = ValNumber $ fromBase b $ map scalarToInteger $ flattenAll ds
 
 -- Given a list of Values, prepend a falsey Value of the same type as the
 -- first element in the list
 -- If the list is empty, prepend 0
 consFalsey :: [Value] -> [Value]
-consFalsey [] = [Number 0]
+consFalsey [] = [ValNumber 0]
 consFalsey (x : xs) = sameTypeFalsey x : x : xs
 
--- Given a string (List of Characters), split on newlines; given a List,
+-- Given a string (ValList of ValChars), split on newlines; given a ValList,
 -- convert to strings and join on newlines
--- Any non-List Value is treated as a string
+-- Any non-ValList Value is treated as a string
 linesUnlines :: Value -> Value
 linesUnlines = linesUnlines' . valToDisplay
   where
-    linesUnlines' (AsString s) = List $ map stringToVal $ lines s
+    linesUnlines' (AsString s) = ValList $ map stringToVal $ lines s
     linesUnlines' (AsList l) = stringToVal $ unlines $ map valToString l
-    linesUnlines' (AsChar c) = List $ map stringToVal $ lines [c]
-    linesUnlines' (AsNumber n) = List $ map stringToVal $ lines $ show n
+    linesUnlines' (AsChar c) = ValList $ map stringToVal $ lines [c]
+    linesUnlines' (AsNumber n) = ValList $ map stringToVal $ lines $ show n
 
 -- The following builtins are used elsewhere besides just being included in
 -- the builtins Map, so they are defined separately
 fnFlatten :: Function
-fnFlatten = monadic $ List . flattenOnce . listOrSingleton
+fnFlatten = monadic $ ValList . flattenOnce . listOrSingleton
 
 fnConcat :: Function
-fnConcat = dyadic (\x y -> List $ listOrSingleton x ++ listOrSingleton y)
+fnConcat = dyadic (\x y -> ValList $ listOrSingleton x ++ listOrSingleton y)
 
 fnStringify :: Function
 fnStringify = monadic $ stringToVal . valToString
@@ -328,7 +328,7 @@ fnNot :: Function
 fnNot = monadic $ boolToVal . not . valToBool
 
 fnPair :: Function
-fnPair = dyadic (\x y -> List [x, y])
+fnPair = dyadic (\x y -> ValList [x, y])
 
 fnSame :: Function
 fnSame = dyadic (\x y -> boolToVal $ x == y)
@@ -340,68 +340,68 @@ implementation f = case f of
   Abs -> numberMathMonad abs
   All -> monadic $ boolToVal . all valToBool . listOrSingleton
   Any -> monadic $ boolToVal . any valToBool . listOrSingleton
-  ConsFalsey -> monadic $ List . consFalsey . listOrSingleton
-  Cycle -> monadic $ List . cycle' . listOrSingleton
+  ConsFalsey -> monadic $ ValList . consFalsey . listOrSingleton
+  Cycle -> monadic $ ValList . cycle' . listOrSingleton
   Dec -> charMathMonad pred
-  Depth -> monadic $ Number . depth
+  Depth -> monadic $ ValNumber . depth
   Double -> numberMathMonad (* 2)
   Flatten -> fnFlatten
-  FlattenAll -> monadic $ List . map scalarToVal . flattenAll . listOrSingleton
+  FlattenAll -> monadic $ ValList . map scalarToVal . flattenAll . listOrSingleton
   From0 -> monadic $ mapOverList $ exclRange (ScalarNumber 0)
   From1 -> monadic $ mapOverList $ exclRange (ScalarNumber 1)
-  Group -> monadic $ List . map List . group . listOrSingleton
+  Group -> monadic $ ValList . map ValList . group . listOrSingleton
   Halve -> numberMathMonad (`div` 2)
   Head -> monadic $ head . listOrSingleton
   IFrom0 -> monadic $ mapOverList $ inclRange (ScalarNumber 0)
   IFrom1 -> monadic $ mapOverList $ inclRange (ScalarNumber 1)
   Id -> monadic id
   Inc -> charMathMonad succ
-  Indices -> monadic (\l -> List [Number i | (i, _) <- zip [0..] $ listOrSingleton l])
-  Init -> monadic $ List . init' . listOrSingleton
-  Inits -> monadic $ List . map List . inits . listOrSingleton
+  Indices -> monadic (\l -> ValList [ValNumber i | (i, _) <- zip [0..] $ listOrSingleton l])
+  Init -> monadic $ ValList . init' . listOrSingleton
+  Inits -> monadic $ ValList . map ValList . inits . listOrSingleton
   Last -> monadic $ last . listOrSingleton
-  Length -> monadic (\l -> Number $ genericLength $ listOrString l)
+  Length -> monadic (\l -> ValNumber $ genericLength $ listOrString l)
   Lines -> monadic linesUnlines
   Maximum -> monadic $ maximum . map scalarToVal . flattenAll . listOrSingleton
   Minimum -> monadic $ minimum . map scalarToVal . flattenAll . listOrSingleton
   Neg -> numberMathMonad (0 -)
   Negative -> numberMathMonad $ boolToInteger . (< 0)
   Not -> fnNot
-  Nub -> monadic $ List . nub . listOrSingleton
+  Nub -> monadic $ ValList . nub . listOrSingleton
   Parity -> numberMathMonad (`mod` 2)
   Positive -> numberMathMonad $ boolToInteger . (> 0)
-  Product -> monadic $ Number . product . toIntegerList
+  Product -> monadic $ ValNumber . product . toIntegerList
   Read -> monadic $ read . valToString
-  Reverse -> monadic $ List . reverse . listOrSingleton
+  Reverse -> monadic $ ValList . reverse . listOrSingleton
   Show -> monadic $ stringToVal . show
   Sign -> numberMathMonad signum
-  Sort -> monadic $ List . sort . listOrSingleton
+  Sort -> monadic $ ValList . sort . listOrSingleton
   Square -> numberMathMonad (\x -> x * x)
   Stringify -> fnStringify
-  Sum -> monadic $ Number . sum . toIntegerList
-  Tail -> monadic $ List . drop 1 . listOrSingleton
-  Tails -> monadic $ List . map List . tails . listOrSingleton
-  TruthyIndices -> monadic (\l -> List [Number i | (i, x) <- zip [0..] $ listOrSingleton l, valToBool x])
-  UniformDepth -> monadic $ Number . uniformDepth
-  Wrap -> monadic (\x -> List [x])
+  Sum -> monadic $ ValNumber . sum . toIntegerList
+  Tail -> monadic $ ValList . drop 1 . listOrSingleton
+  Tails -> monadic $ ValList . map ValList . tails . listOrSingleton
+  TruthyIndices -> monadic (\l -> ValList [ValNumber i | (i, x) <- zip [0..] $ listOrSingleton l, valToBool x])
+  UniformDepth -> monadic $ ValNumber . uniformDepth
+  Wrap -> monadic (\x -> ValList [x])
   Zero -> numberMathMonad $ boolToInteger . (== 0)
   --- Arity 2 ---
   At -> numAndListDyad $ flip genericIndex
   AtCycle -> numAndListDyad $ flip indexCycle
-  Chunks -> dyadic (\x y -> List $ map List $ chunks (cycle' $ toIntegerList x) (listOrSingleton y))
+  Chunks -> dyadic (\x y -> ValList $ map ValList $ chunks (cycle' $ toIntegerList x) (listOrSingleton y))
   Compare -> dyadic (\x y -> orderingToVal $ y `compare` x)
   Concat -> fnConcat
-  Cons -> dyadic (\x y -> List $ x : listOrSingleton y)
-  Consr -> dyadic (\x y -> List $ listOrSingleton y ++ [x])
+  Cons -> dyadic (\x y -> ValList $ x : listOrSingleton y)
+  Consr -> dyadic (\x y -> ValList $ listOrSingleton y ++ [x])
   Const -> dyadic const
-  Drop -> numAndListDyad $ (List .) . drop'
+  Drop -> numAndListDyad $ (ValList .) . drop'
   Equal -> numberMathDyad $ (boolToInteger .) . (==)
   FromBase -> numAndListDyad valsFromBase
   Greater -> numberMathDyad $ (boolToInteger .) . flip (>)
   GreaterEqual -> numberMathDyad $ (boolToInteger .) . flip (>=)
   IDiv -> numberMathDyad $ flip div
   IRange -> dyadic $ mapOverLists inclRange
-  Interleave -> dyadic (\x y -> List $ interleave (listOrSingleton x) (listOrSingleton y))
+  Interleave -> dyadic (\x y -> ValList $ interleave (listOrSingleton x) (listOrSingleton y))
   Less -> numberMathDyad $ (boolToInteger .) . flip (<)
   LessEqual -> numberMathDyad $ (boolToInteger .) . flip (<=)
   Max -> dyadic max
@@ -411,19 +411,19 @@ implementation f = case f of
   NotEqual -> numberMathDyad $ (boolToInteger .) . (/=)
   NotSame -> dyadic (\x y -> boolToVal $ x /= y)
   Pair -> fnPair
-  Partition -> numAndListDyad $ ((List . map List) .) . partition
+  Partition -> numAndListDyad $ ((ValList . map ValList) .) . partition
   Plus -> charMathDyad (+)
   Pow -> numberMathDyad (^)
   Range -> dyadic $ mapOverLists exclRange
-  Repeat -> numAndListDyad $ (List .) . repeat'
-  Rotate -> numAndListDyad $ (List .) . rotate
+  Repeat -> numAndListDyad $ (ValList .) . repeat'
+  Rotate -> numAndListDyad $ (ValList .) . rotate
   Same -> fnSame
-  Take -> numAndListDyad $ (List .) . take'
-  TakeCycle -> numAndListDyad $ (List .) . takeCycle
+  Take -> numAndListDyad $ (ValList .) . take'
+  TakeCycle -> numAndListDyad $ (ValList .) . takeCycle
   Times -> charMathDyad (*)
   ToBase -> numToListDyad toBase
-  Windows -> numAndListDyad (\n l -> List $ map List $ windows n l)
+  Windows -> numAndListDyad (\n l -> ValList $ map ValList $ windows n l)
   --- Arity 3 ---
-  Trio -> triadic (\x y z -> List [x, y, z])
+  Trio -> triadic (\x y z -> ValList [x, y, z])
   --- Arity 4 ---
-  Quartet -> tetradic (\x y z w -> List [x, y, z, w])
+  Quartet -> tetradic (\x y z w -> ValList [x, y, z, w])

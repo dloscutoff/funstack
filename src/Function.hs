@@ -152,91 +152,91 @@ tetradic :: (Value -> Value -> Value -> Value -> Value) -> Function
 tetradic f = Function 4 (triadic . f)
 
 -- Given a one-argument Haskell function that takes ScalarValues, return a new
--- function that applies that function to non-List arguments and maps the
--- function over List arguments
+-- function that applies that function to non-ValList arguments and maps the
+-- function over ValList arguments
 mapOverList :: (ScalarValue -> Value) -> Value -> Value
-mapOverList f (List l) = List $ map (mapOverList f) l
-mapOverList f (Number x) = f (ScalarNumber x)
-mapOverList f (Character c) = f (ScalarChar c)
+mapOverList f (ValList l) = ValList $ map (mapOverList f) l
+mapOverList f (ValNumber x) = f (ScalarNumber x)
+mapOverList f (ValChar c) = f (ScalarChar c)
 
 -- Given a two-argument Haskell function that takes ScalarValues, return
--- a new function that applies that function to non-List arguments and maps
--- the function over List arguments
+-- a new function that applies that function to non-ValList arguments and maps
+-- the function over ValList arguments
 -- TODO: use some kind of zip-longest logic instead of zipWith
 mapOverLists :: (ScalarValue -> ScalarValue -> Value) -> Value -> Value -> Value
-mapOverLists f (List l) (List m) = List $ zipWith (mapOverLists f) l m
-mapOverLists f x (List l) = List $ map (mapOverLists f x) l
-mapOverLists f (List l) y = List $ map ((flip $ mapOverLists f) y) l
-mapOverLists f (Number x) (Number y) = f (ScalarNumber x) (ScalarNumber y)
-mapOverLists f (Number x) (Character c) = f (ScalarNumber x) (ScalarChar c)
-mapOverLists f (Character c) (Number x) = f (ScalarChar c) (ScalarNumber x)
-mapOverLists f (Character c) (Character d) = f (ScalarChar c) (ScalarChar d)
+mapOverLists f (ValList l) (ValList m) = ValList $ zipWith (mapOverLists f) l m
+mapOverLists f x (ValList l) = ValList $ map (mapOverLists f x) l
+mapOverLists f (ValList l) y = ValList $ map ((flip $ mapOverLists f) y) l
+mapOverLists f (ValNumber x) (ValNumber y) = f (ScalarNumber x) (ScalarNumber y)
+mapOverLists f (ValNumber x) (ValChar c) = f (ScalarNumber x) (ScalarChar c)
+mapOverLists f (ValChar c) (ValNumber x) = f (ScalarChar c) (ScalarNumber x)
+mapOverLists f (ValChar c) (ValChar d) = f (ScalarChar c) (ScalarChar d)
 
 -- Given a two-argument Haskell function that takes a ScalarValue and a Value,
 -- return a new function that applies that function to its arguments if the
--- first argument is not a List and maps over a first argument that is a List
+-- first argument is not a ValList and maps over a first argument that is a ValList
 mapOverLeftList :: (ScalarValue -> Value -> Value) -> Value -> Value -> Value
-mapOverLeftList f (List l) y = List [mapOverLeftList f x y | x <- l]
-mapOverLeftList f (Number x) y = f (ScalarNumber x) y
-mapOverLeftList f (Character c) y = f (ScalarChar c) y
+mapOverLeftList f (ValList l) y = ValList [mapOverLeftList f x y | x <- l]
+mapOverLeftList f (ValNumber x) y = f (ScalarNumber x) y
+mapOverLeftList f (ValChar c) y = f (ScalarChar c) y
 
 -- Convert a function from Integer to Integer to a function from ScalarValue
 -- to Value that, given a ScalarChar, applies the original function to its
--- charcode and converts the result back to a Character
+-- charcode and converts the result back to a ValChar
 unaryCharMath :: (Integer -> Integer) -> ScalarValue -> Value
-unaryCharMath f (ScalarNumber x) = Number $ f x
-unaryCharMath f (ScalarChar c) = Character $ chr' $ f $ ord' c
+unaryCharMath f (ScalarNumber x) = ValNumber $ f x
+unaryCharMath f (ScalarChar c) = ValChar $ chr' $ f $ ord' c
 
 -- Convert a two-argument function over Integers to a function from two
--- ScalarValues to Value that, given a Character, applies the original
--- function to its charcode and:
---  Given one Character and one Number, converts the result to a Character
---  Given two Characters or two Numbers, converts the result to a Number
+-- ScalarValues to Value that applies the original function to the underlying
+-- numbers or charcodes and:
+--  Given one ScalarChar and one ScalarNumber, converts the result to a ValChar
+--  Given two ScalarChar or two ScalarNumbers, converts the result to a ValNumber
 binaryCharMath :: (Integer -> Integer -> Integer) -> ScalarValue -> ScalarValue -> Value
-binaryCharMath f (ScalarNumber x) (ScalarNumber y) = Number $ f x y
-binaryCharMath f (ScalarNumber x) (ScalarChar c) = Character $ chr' $ f x (ord' c)
-binaryCharMath f (ScalarChar c) (ScalarNumber x) = Character $ chr' $ f (ord' c) x
-binaryCharMath f (ScalarChar c) (ScalarChar d) = Number $ f (ord' c) (ord' d)
+binaryCharMath f (ScalarNumber x) (ScalarNumber y) = ValNumber $ f x y
+binaryCharMath f (ScalarNumber x) (ScalarChar c) = ValChar $ chr' $ f x (ord' c)
+binaryCharMath f (ScalarChar c) (ScalarNumber x) = ValChar $ chr' $ f (ord' c) x
+binaryCharMath f (ScalarChar c) (ScalarChar d) = ValNumber $ f (ord' c) (ord' d)
 
 -- Given a one-argument function over Integers, return a monadic Function that
--- takes Numbers to Numbers, Characters to Characters, and maps over Lists
+-- takes ValNumbers to ValNumbers, ValChars to ValChars, and maps over ValLists
 charMathMonad :: (Integer -> Integer) -> Function
 charMathMonad = monadic . mapOverList . unaryCharMath
 
 -- Given a two-argument function over Integers, return a dyadic Function that
--- takes Number + Number or Character + Character to Number, Number +
--- Character or Character + Number to Character, and maps over Lists
+-- takes ValNumber + ValNumber or ValChar + ValChar to ValNumber, ValNumber +
+-- ValChar or ValChar + ValNumber to ValChar, and maps over ValLists
 charMathDyad :: (Integer -> Integer -> Integer) -> Function
 charMathDyad = dyadic . mapOverLists . binaryCharMath
 
 -- Given a one-argument function over Integers, return a monadic Function that
--- treats Characters as their charcodes and maps over Lists
+-- treats ValChars as their charcodes and maps over ValLists
 numberMathMonad :: (Integer -> Integer) -> Function
 numberMathMonad = monadic . mapOverList . unaryNumberMath
-  where unaryNumberMath f = Number . f . scalarToInteger
+  where unaryNumberMath f = ValNumber . f . scalarToInteger
 
 -- Given a two-argument function over Integers, return a dyadic Function that
--- treats Characters as their charcodes and maps over Lists
+-- treats ValChars as their charcodes and maps over ValLists
 numberMathDyad :: (Integer -> Integer -> Integer) -> Function
 numberMathDyad = dyadic . mapOverLists . binaryNumberMath
-  where binaryNumberMath f x y = Number $ f (scalarToInteger x) (scalarToInteger y)
+  where binaryNumberMath f x y = ValNumber $ f (scalarToInteger x) (scalarToInteger y)
 
 -- Given a one-argument function from Integer to [Integer], return a monadic
--- Function that treats Characters as their charcodes and maps over Lists
+-- Function that treats ValChars as their charcodes and maps over ValLists
 numToListMonad :: (Integer -> [Integer]) -> Function
 numToListMonad = monadic . mapOverList . unaryNumToList
-  where unaryNumToList f = List . map Number . f . scalarToInteger
+  where unaryNumToList f = ValList . map ValNumber . f . scalarToInteger
 
 -- Given a two-argument function from Integers to [Integer], return a dyadic
--- Function that treats Characters as their charcodes and maps over Lists
+-- Function that treats ValChars as their charcodes and maps over ValLists
 numToListDyad :: (Integer -> Integer -> [Integer]) -> Function
 numToListDyad = dyadic . mapOverLists . binaryNumToList
-  where binaryNumToList f x y = List $ map Number $ f (scalarToInteger x) (scalarToInteger y)
+  where binaryNumToList f x y = ValList $ map ValNumber $ f (scalarToInteger x) (scalarToInteger y)
 
 -- Given a two-argument function from Integer and [Value] to Value, return
 -- a dyadic Function:
---  First argument: treat Characters as their charcodes and map over Lists
---  Second argument: convert non-List to singleton List
+--  First argument: treat ValChars as their charcodes and map over ValLists
+--  Second argument: convert non-ValList to singleton ValList
 numAndListDyad :: (Integer -> [Value] -> Value) -> Function
 numAndListDyad = dyadic . mapOverLeftList . numAndListToList
   where numAndListToList f x y = f (scalarToInteger x) (listOrSingleton y)

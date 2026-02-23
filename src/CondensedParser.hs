@@ -167,16 +167,16 @@ stackOpAliases = [
 -- Constants that aren't number/character/string/list literals
 specialValues :: [(String, Value)]
 specialValues = [
-  ("#N1", List $ map Number [1..]),
-  ("\\n", Character '\n'),
-  ("\\s", Character ' '),
-  ("[]", List []),
-  ("$A", List $ map Character ['A'..'Z']),
-  ("$a", List $ map Character ['a'..'z']),
-  ("$0", List $ map Character ['0'..'9']),
-  ("#-", Number (-1)),
-  ("#t", Number 10),
-  ("#N", List $ map Number [0..])
+  ("#N1", ValList $ map ValNumber [1..]),
+  ("\\n", ValChar '\n'),
+  ("\\s", ValChar ' '),
+  ("[]", ValList []),
+  ("$A", ValList $ map ValChar ['A'..'Z']),
+  ("$a", ValList $ map ValChar ['a'..'z']),
+  ("$0", ValList $ map ValChar ['0'..'9']),
+  ("#-", ValNumber (-1)),
+  ("#t", ValNumber 10),
+  ("#N", ValList $ map ValNumber [0..])
   ]
 
 -- Helper ReadPrec parsers for the Read instances below:
@@ -274,7 +274,7 @@ instance Read Token where
         '#' <- get
         digit <- getDigit
         case readMaybe [digit] of
-          Just n -> pure (Literal $ Number n)
+          Just n -> pure (Literal $ ValNumber n)
           Nothing -> pfail
       -- Match a character literal like ''x'
       readCharLiteral = do
@@ -282,7 +282,7 @@ instance Read Token where
         '\'' <- get
         char <- getNonSpaceChar
         '\'' <- get
-        pure (Literal $ Character char)
+        pure (Literal $ ValChar char)
       -- Match a numeric literal like #"-123"
       readNumberLiteral = do
         '#' <- get
@@ -290,7 +290,7 @@ instance Read Token where
         number <- getNumber
         '"' <- get
         case readMaybe number of
-          Just n -> pure (Literal $ Number n)
+          Just n -> pure (Literal $ ValNumber n)
           Nothing -> pfail
       -- Match a numeric list literal like #"-12,345"
       readNumberListLiteral = do
@@ -299,7 +299,7 @@ instance Read Token where
         numbers <- getNumbers
         '"' <- get
         case sequence (map readMaybe numbers) of
-          Just ns -> pure (Literal $ List $ map Number ns)
+          Just ns -> pure (Literal $ ValList $ map ValNumber ns)
           Nothing -> pfail
       -- Match an interpolation/string literal like $"'a'b-$'c"
       readInterpolation = do
