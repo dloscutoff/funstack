@@ -19,7 +19,7 @@ import Function (
   apply2,
   applyFully,
   monadic,
-  dyadic
+  listMonad
   )
 import Modifier (Modifier (..))
 import BuiltinFunction (windows)
@@ -285,8 +285,7 @@ zipParallel a fs
 -- If all arguments are non-ValLists, the result is a singleton ValList
 mapZipping :: Function -> Function
 mapZipping f
-  | arity f == 1 =
-      monadic (\xs -> toValue [apply f x | x <- fromValue xs])
+  | arity f == 1 = listMonad $ map (apply f)
   | otherwise = Function (arity f) mapBind
   where
     mapBind (ValList l) = zipParallel (arity f - 1) (map (bind f) l)
@@ -350,8 +349,7 @@ treeUnfold f t
 -- If the first argument is not a ValList, wrap it in a singleton ValList
 mapLeft :: Function -> Function
 mapLeft f
-  | a == 1 =
-      monadic (\xs -> toValue [[apply f x, x] | x <- fromValue xs])
+  | a == 1 = listMonad $ map (\x -> [apply f x, x])
   | otherwise =
       Function a (\xs -> parallel (a - 1) [bind f x | x <- fromValue xs])
   where a = arity f
@@ -363,16 +361,14 @@ mapLeft f
 -- If the first argument is not a ValList, wrap it in a singleton ValList
 mapRight :: Function -> Function
 mapRight f
-  | a == 1 =
-      monadic (\xs -> toValue [[x, apply f x] | x <- fromValue xs])
-  | a == 2 =
-      dyadic (\x ys -> toValue [apply2 f x y | y <- fromValue ys])
+  | a == 1 = listMonad $ map (\x -> [x, apply f x])
+  | a == 2 = Function 2 (\x -> listMonad $ map (apply2 f x))
   | otherwise = Function a (\x -> mapRight $ bind f x)
   where a = arity f
 
 -- Convert an arity-N Function to map over size-N windows from a ValList
 mapWindows :: Function -> Function
-mapWindows f = monadic (\xs -> toValue $ map (applyFully f) $ windows (arity f) (fromValue xs))
+mapWindows f = listMonad (map (applyFully f) . windows (arity f))
 
 -- Convert an arity-N Function to a Function that creates a depth-N nested
 -- ValList containing the results of applying the original Function to every
@@ -457,7 +453,7 @@ foldl' f x l
 foldl1' :: Function -> [Value] -> Value
 foldl1' f l
   | arity f <= 1 = error "Function for foldl1 must have arity >= 2"
-  | null l = error $ "Cannot foldl1 empty list"
+  | null l = error "Cannot foldl1 empty list"
   | otherwise = last $ scanl1' f l
 
 -- Given a Function, an intial accumulator Value, and a list of Values,
@@ -477,7 +473,7 @@ foldr' f x l
 foldr1' :: Function -> [Value] -> Value
 foldr1' f l
   | arity f <= 1 = error "Function for foldr1 must have arity >= 2"
-  | null l = error $ "Cannot foldr1 empty list"
+  | null l = error "Cannot foldr1 empty list"
   | otherwise = head $ scanr1' f l
 
 -- Given two Functions and an initial argument list of Values, perform
@@ -496,7 +492,7 @@ unfoldr' f g args
 -- Given a Function, apply the takewhile modifier to it and return a
 -- new Function
 modTakeWhile :: Function -> Function
-modTakeWhile f = monadic $ toValue . takeWhile' f . fromValue
+modTakeWhile f = listMonad $ takeWhile' f
 
 -- Given two Functions, apply the unfoldr modifier to them and return a
 -- new Function
@@ -511,16 +507,16 @@ implementation m = case m of
   --- 1-modifiers ---
   Arity2 -> Modifier1 $ convertArity 2
   Arity3 -> Modifier1 $ convertArity 3
-  Dropwhile -> Modifier1 (\f -> monadic (toValue . dropWhile' f . fromValue))
-  Filter -> Modifier1 (\f -> monadic (toValue . filter' f . fromValue))
+  Dropwhile -> Modifier1 $ listMonad . dropWhile'
+  Filter -> Modifier1 $ listMonad . filter'
   Fixiter -> Modifier1 fixiter
   Fixpoint -> Modifier1 fixpoint
   Flatmap -> Modifier1 (\f -> BF.fnFlatten <> mapZipping f)
   Flip -> Modifier1 flipArgs
-  Foldl -> Modifier1 (\f -> dyadic (\x ys -> foldl' f x $ fromValue ys))
-  Foldl1 -> Modifier1 (\f -> monadic (\xs -> foldl1' f $ fromValue xs))
-  Foldr -> Modifier1 (\f -> dyadic (\x ys -> foldr' f x $ fromValue ys))
-  Foldr1 -> Modifier1 (\f -> monadic (\xs -> foldr1' f $ fromValue xs))
+  Foldl -> Modifier1 (\f -> Function 2 (\x -> listMonad $ foldl' f x))
+  Foldl1 -> Modifier1 $ listMonad . foldl1'
+  Foldr -> Modifier1 (\f -> Function 2 (\x -> listMonad $ foldr' f x))
+  Foldr1 -> Modifier1 $ listMonad . foldr1'
   Invariant -> Modifier1 (\f -> hook BF.fnSame f)
   Iterate -> Modifier1 iterate'
   Lmap -> Modifier1 mapLeft
@@ -529,10 +525,10 @@ implementation m = case m of
   Not -> Modifier1 (BF.fnNot <>)
   Rmap -> Modifier1 mapRight
   Rotate -> Modifier1 rotateArgs
-  Scanl -> Modifier1 (\f -> dyadic (\x ys -> toValue $ scanl' f x $ fromValue ys))
-  Scanl1 -> Modifier1 (\f -> monadic (\xs -> toValue $ scanl1' f $ fromValue xs))
-  Scanr -> Modifier1 (\f -> dyadic (\x ys -> toValue $ scanr' f x $ fromValue ys))
-  Scanr1 -> Modifier1 (\f -> monadic (\xs -> toValue $ scanr1' f $ fromValue xs))
+  Scanl -> Modifier1 (\f -> Function 2 (\x -> listMonad $ scanl' f x))
+  Scanl1 -> Modifier1 $ listMonad . scanl1'
+  Scanr -> Modifier1 (\f -> Function 2 (\x -> listMonad $ scanr' f x))
+  Scanr1 -> Modifier1 $ listMonad . scanr1'
   Self -> Modifier1 $ convertArity 1
   Selftable -> Modifier1 $ convertArity 1 . table
   Table -> Modifier1 table

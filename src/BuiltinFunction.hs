@@ -55,6 +55,7 @@ import Function (
   numberMathDyad,
 --  numToListMonad,
   numToListDyad,
+  listMonad,
   numAndListDyad
   )
 
@@ -157,7 +158,7 @@ boolToInteger = toInteger . fromEnum
 -- the second, coercing to the type of the second argument
 inclRange :: ScalarValue -> ScalarValue -> Value
 inclRange x (ScalarNumber y) = toValue $ map ValNumber [scalarToInteger x..y]
-inclRange x (ScalarChar c) = toValue $ map ValChar [chr' n..c]
+inclRange x (ScalarChar c) = toValue [chr' n..c]
   where n = max 0 (scalarToInteger x)
 
 -- Given two ScalarValues, generate an exclusive range from the first to
@@ -166,7 +167,7 @@ exclRange :: ScalarValue -> ScalarValue -> Value
 exclRange x (ScalarNumber y) = toValue $ map ValNumber [scalarToInteger x..y-1]
 exclRange x (ScalarChar c)
   | c == minBound = ValList []
-  | otherwise = toValue $ map ValChar [chr' n..pred c]
+  | otherwise = toValue [chr' n..pred c]
   where n = max 0 (scalarToInteger x)
 
 -- Take the first n elements from a list; if n is negative, take elements
@@ -311,7 +312,7 @@ linesUnlines = linesUnlines' . fromValue
 -- The following builtins are used elsewhere besides just being included in
 -- the builtins Map, so they are defined separately
 fnFlatten :: Function
-fnFlatten = monadic $ toValue . flattenOnce . fromValue
+fnFlatten = listMonad flattenOnce
 
 fnConcat :: Function
 fnConcat = dyadic (\x y -> toValue (fromValue x ++ fromValue y :: [Value]))
@@ -333,50 +334,50 @@ implementation :: BuiltinFunction -> Function
 implementation f = case f of
   --- Arity 1 ---
   Abs -> numberMathMonad abs
-  All -> monadic $ toValue . (and :: [Bool] -> Bool) . fromValue
-  Any -> monadic $ toValue . (or :: [Bool] -> Bool) . fromValue
-  ConsFalsey -> monadic $ toValue . consFalsey . fromValue
-  Cycle -> monadic $ toValue . (cycle' :: [Value] -> [Value]) . fromValue
+  All -> listMonad $ all fromValue
+  Any -> listMonad $ any fromValue
+  ConsFalsey -> listMonad consFalsey
+  Cycle -> listMonad cycle'
   Dec -> charMathMonad pred
   Depth -> monadic $ ValNumber . depth
   Double -> numberMathMonad (* 2)
   Flatten -> fnFlatten
-  FlattenAll -> monadic $ toValue . flattenAll . fromValue
+  FlattenAll -> listMonad flattenAll
   From0 -> monadic $ mapOverList $ exclRange (ScalarNumber 0)
   From1 -> monadic $ mapOverList $ exclRange (ScalarNumber 1)
-  Group -> monadic $ toValue . (group :: [Value] -> [[Value]]) . fromValue
+  Group -> listMonad group
   Halve -> numberMathMonad (`div` 2)
-  Head -> monadic $ head . fromValue
+  Head -> listMonad head
   IFrom0 -> monadic $ mapOverList $ inclRange (ScalarNumber 0)
   IFrom1 -> monadic $ mapOverList $ inclRange (ScalarNumber 1)
   Id -> monadic id
   Inc -> charMathMonad succ
-  Indices -> monadic (\l -> toValue [ValNumber i | (i, _) <- zip [0..] (fromValue l :: [Value])])
-  Init -> monadic $ toValue . (init' :: [Value] -> [Value]) . fromValue
-  Inits -> monadic $ toValue . (inits :: [Value] -> [[Value]]) . fromValue
-  Last -> monadic $ last . fromValue
+  Indices -> listMonad (\l -> [ValNumber i | (i, _) <- zip [0..] l])
+  Init -> listMonad init'
+  Inits -> listMonad inits
+  Last -> listMonad last
   Length -> monadic (\l -> ValNumber $ genericLength $ listOrString l)
   Lines -> monadic linesUnlines
-  Maximum -> monadic $ maximum . map toValue . flattenAll . fromValue
-  Minimum -> monadic $ minimum . map toValue . flattenAll . fromValue
+  Maximum -> listMonad $ maximum . map toValue . flattenAll
+  Minimum -> listMonad $ minimum . map toValue . flattenAll
   Neg -> numberMathMonad (0 -)
   Negative -> numberMathMonad $ boolToInteger . (< 0)
   Not -> fnNot
-  Nub -> monadic $ toValue . (nub :: [Value] -> [Value]) . fromValue
+  Nub -> listMonad nub
   Parity -> numberMathMonad (`mod` 2)
   Positive -> numberMathMonad $ boolToInteger . (> 0)
   Product -> monadic $ ValNumber . product . toIntegerList
   Read -> monadic $ read . valToString
-  Reverse -> monadic $ toValue . (reverse :: [Value] -> [Value]) . fromValue
+  Reverse -> listMonad reverse
   Show -> monadic $ toValue . show
   Sign -> numberMathMonad signum
-  Sort -> monadic $ toValue . (sort :: [Value] -> [Value]) . fromValue
+  Sort -> listMonad sort
   Square -> numberMathMonad (\x -> x * x)
   Stringify -> fnStringify
   Sum -> monadic $ ValNumber . sum . toIntegerList
-  Tail -> monadic $ toValue . (drop 1 :: [Value] -> [Value]) . fromValue
-  Tails -> monadic $ toValue . (tails :: [Value] -> [[Value]]) . fromValue
-  TruthyIndices -> monadic (\l -> toValue [ValNumber i | (i, x) <- zip [0..] $ fromValue l, fromValue x :: Bool])
+  Tail -> listMonad $ drop 1
+  Tails -> listMonad tails
+  TruthyIndices -> listMonad (\l -> [ValNumber i | (i, x) <- zip [0..] l, fromValue x :: Bool])
   UniformDepth -> monadic $ ValNumber . uniformDepth
   Wrap -> monadic (\x -> toValue [x])
   Zero -> numberMathMonad $ boolToInteger . (== 0)

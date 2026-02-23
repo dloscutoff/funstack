@@ -22,6 +22,7 @@ module Function (
   numberMathDyad,
   numToListMonad,
   numToListDyad,
+  listMonad,
   numAndListDyad
 ) where
 
@@ -29,6 +30,7 @@ import Value (
   Value (..),
   ScalarValue (..),
   fromValue,
+  ToValue,
   toValue,
   ord',
   chr',
@@ -233,6 +235,12 @@ numToListMonad = monadic . mapOverList . unaryNumToList
 numToListDyad :: (Integer -> Integer -> [Integer]) -> Function
 numToListDyad = dyadic . mapOverLists . binaryNumToList
   where binaryNumToList f x y = toValue $ map ValNumber $ f (scalarToInteger x) (scalarToInteger y)
+
+-- Given a one-argument function from [Value] to some type convertible to Value,
+-- return a monadic Function that applies to ValLists and wraps other Values in
+-- singleton lists
+listMonad :: (ToValue a) => ([Value] -> a) -> Function
+listMonad f = monadic $ toValue . f . fromValue
 
 -- Given a two-argument function from Integer and [Value] to Value, return
 -- a dyadic Function:
