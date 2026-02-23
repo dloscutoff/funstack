@@ -5,7 +5,7 @@ module BuiltinModifier (
 ) where
 
 import Data.List (unfoldr)
-import Value (Value (..), listOrSingleton, valToBool)
+import Value (Value (..), fromValue, toValue)
 import Function (
   Function (..),
   Arity,
@@ -136,7 +136,7 @@ ifThenElse f g h = ifThenElse' a f g h
   where
     a = maximum $ map arity [f, g, h]
     ifThenElse' a' f' g' h'
-      | a' == 1 = Function 1 (\x -> if (valToBool $ apply f' x) then (bind g' x) else (bind h' x))
+      | a' == 1 = Function 1 (\x -> if (fromValue $ apply f' x) then (bind g' x) else (bind h' x))
       | otherwise = Function a' (\x -> ifThenElse' (a' - 1) (bind f' x) (bind g' x) (bind h' x))
 
 -- Modify a Function to take its first argument second and its second
@@ -182,7 +182,7 @@ convertArity a' f
 -- element is the result of applying the Function over the preceding N
 -- elements
 iterate' :: Function -> Function
-iterate' f = collectArgs (arity f) (ValList . unfoldr iterateStep)
+iterate' f = collectArgs (arity f) (toValue . unfoldr iterateStep)
   where
     iterateStep args = Just (head args, tail args ++ [newVal])
       where newVal = applyFully f args
@@ -191,7 +191,7 @@ iterate' f = collectArgs (arity f) (ValList . unfoldr iterateStep)
 -- For higher-arity Functions, the entire argument list must remain unchanged
 -- to stop the iteration
 fixiter :: Function -> Function
-fixiter f = collectArgs (arity f) (ValList . fixiterApply)
+fixiter f = collectArgs (arity f) (toValue . fixiterApply)
   where
     fixiterApply args
       | all (== newVal) args = args
@@ -214,7 +214,7 @@ fixpoint f = collectArgs (arity f) fixpointApply
 takeWhile' :: Function -> [Value] -> [Value]
 takeWhile' f xs
   | length args < arity f = xs
-  | valToBool (applyFully f args) = head xs : takeWhile' f (tail xs)
+  | fromValue (applyFully f args) = head xs : takeWhile' f (tail xs)
   | otherwise = init args
   where args = take (arity f) xs
 
@@ -225,7 +225,7 @@ takeWhile' f xs
 dropWhile' :: Function -> [Value] -> [Value]
 dropWhile' f xs
   | length args < arity f = []
-  | valToBool (applyFully f args) = dropWhile' f (tail xs)
+  | fromValue (applyFully f args) = dropWhile' f (tail xs)
   | otherwise = drop (arity f - 1) xs
   where args = take (arity f) xs
 
@@ -235,7 +235,7 @@ dropWhile' f xs
 filter' :: Function -> [Value] -> [Value]
 filter' f l
   | arity f > 1 = error "Function for filter must have arity 1"
-  | otherwise = filter (valToBool . apply f) l
+  | otherwise = filter (fromValue . apply f) l
 
 -- Bind multiple Functions to an argument and return a list of new Functions
 parallelBind :: [Function] -> Value -> [Function]
@@ -251,13 +251,13 @@ zipBind fs x = parallelBind fs x
 -- Apply multiple arity-1 Functions to an argument and return a ValList of
 -- the results
 parallelApply :: [Function] -> Value -> Value
-parallelApply fs x = ValList [apply f x | f <- fs]
+parallelApply fs x = toValue [apply f x | f <- fs]
 
 -- Apply multiple arity-1 Functions to an argument and return a ValList of
 -- the results; if the argument is a ValList, zip the Functions with the
 -- elements of the argument; otherwise, apply each Function to the argument
 zipApply :: [Function] -> Value -> Value
-zipApply fs (ValList l) = ValList $ zipWith apply fs l
+zipApply fs (ValList l) = toValue $ zipWith apply fs l
 zipApply fs x = parallelApply fs x
 
 -- Given an arity and a list of Functions of that arity, turn them into a
@@ -286,7 +286,7 @@ zipParallel a fs
 mapZipping :: Function -> Function
 mapZipping f
   | arity f == 1 =
-      monadic (\xs -> ValList [apply f x | x <- listOrSingleton xs])
+      monadic (\xs -> toValue [apply f x | x <- fromValue xs])
   | otherwise = Function (arity f) mapBind
   where
     mapBind (ValList l) = zipParallel (arity f - 1) (map (bind f) l)
@@ -304,7 +304,7 @@ treeMapZipping f
   where
     treeMapBind (ValList l) = zipParallel (arity f - 1) (map (bind $ treeMapZipping f) l)
     treeMapBind x = treeMapZipping $ bind f x
-    treeMapApply (ValList l) = ValList [apply (treeMapZipping f) x | x <- l]
+    treeMapApply (ValList l) = toValue [apply (treeMapZipping f) x | x <- l]
     treeMapApply x = apply f x
 
 -- Convert a Function to apply recursively over a nested ValList, interpreted
@@ -314,7 +314,7 @@ treeMapZipping f
 treeApply :: Function -> Value -> Value
 treeApply f t
   | arity f > 1 = error "Function for treeapply must have arity 1"
-  | (ValList l) <- t = apply f $ ValList $ map (treeApply f) l
+  | (ValList l) <- t = apply f $ toValue $ map (treeApply f) l
   | leaf <- t = leaf
 
 -- Convert three Functions to walk recursively over a nested ValList, interpreted
@@ -328,7 +328,7 @@ treeWalk f g h t
   | (ValList _) <- t = treeWalk' $ apply f t
   | otherwise = treeWalk' t
   where
-    treeWalk' (ValList l) = apply h $ ValList $ map (treeWalk f g h) l
+    treeWalk' (ValList l) = apply h $ toValue $ map (treeWalk f g h) l
     treeWalk' leaf = apply g leaf
 
 -- Convert a Function to generate a nested list, interpreted as a tree,
@@ -340,7 +340,7 @@ treeUnfold f t
   | arity f > 1 = error "Function for treeunfold must have arity 1"
   | otherwise =
     case (apply f t) of
-      (ValList l) -> ValList $ map (treeUnfold f) l
+      (ValList l) -> toValue $ map (treeUnfold f) l
       leaf -> leaf
 
 -- Convert a Function to map over its first argument
@@ -351,9 +351,9 @@ treeUnfold f t
 mapLeft :: Function -> Function
 mapLeft f
   | a == 1 =
-      monadic (\xs -> ValList [ValList [apply f x, x] | x <- listOrSingleton xs])
+      monadic (\xs -> toValue [[apply f x, x] | x <- fromValue xs])
   | otherwise =
-      Function a (\xs -> parallel (a - 1) [bind f x | x <- listOrSingleton xs])
+      Function a (\xs -> parallel (a - 1) [bind f x | x <- fromValue xs])
   where a = arity f
 
 -- Convert a Function to map over its last argument
@@ -364,15 +364,15 @@ mapLeft f
 mapRight :: Function -> Function
 mapRight f
   | a == 1 =
-      monadic (\xs -> ValList [ValList [x, apply f x] | x <- listOrSingleton xs])
+      monadic (\xs -> toValue [[x, apply f x] | x <- fromValue xs])
   | a == 2 =
-      dyadic (\x ys -> ValList [apply2 f x y | y <- listOrSingleton ys])
+      dyadic (\x ys -> toValue [apply2 f x y | y <- fromValue ys])
   | otherwise = Function a (\x -> mapRight $ bind f x)
   where a = arity f
 
 -- Convert an arity-N Function to map over size-N windows from a ValList
 mapWindows :: Function -> Function
-mapWindows f = monadic (\xs -> ValList $ map (applyFully f) $ windows (arity f) (listOrSingleton xs))
+mapWindows f = monadic (\xs -> toValue $ map (applyFully f) $ windows (arity f) (fromValue xs))
 
 -- Convert an arity-N Function to a Function that creates a depth-N nested
 -- ValList containing the results of applying the original Function to every
@@ -382,7 +382,7 @@ table f
   | a < 1 = f
   | a == 1 = mapZipping f
   | otherwise =
-      Function a (\xs -> parallel (a - 1) [table $ bind f x | x <- listOrSingleton xs])
+      Function a (\xs -> parallel (a - 1) [table $ bind f x | x <- fromValue xs])
   where a = arity f
 
 -- Given a Function, an intial accumulator Value, and a list of Values,
@@ -490,20 +490,20 @@ foldr1' f l
 unfoldr' :: Function -> Function -> ArgList -> [Value]
 unfoldr' f g args
   | null args = error "Cannot unfoldr' empty arglist"
-  | valToBool (head args) = applyFully f args : unfoldr' f g (tail args ++ [applyFully g args])
+  | fromValue (head args) = applyFully f args : unfoldr' f g (tail args ++ [applyFully g args])
   | otherwise = []
 
 -- Given a Function, apply the takewhile modifier to it and return a
 -- new Function
 modTakeWhile :: Function -> Function
-modTakeWhile f = monadic $ ValList . takeWhile' f . listOrSingleton
+modTakeWhile f = monadic $ toValue . takeWhile' f . fromValue
 
 -- Given two Functions, apply the unfoldr modifier to them and return a
 -- new Function
 -- The arity of the combined Function is the max of the arities of
 -- the two Functions
 modUnfoldR :: Function -> Function -> Function
-modUnfoldR f g = collectArgs (arity f `max` arity g) (ValList . unfoldr' f g)
+modUnfoldR f g = collectArgs (arity f `max` arity g) (toValue . unfoldr' f g)
 
 -- Given a BuiltinModifier, return the Modifier that it represents
 implementation :: BuiltinModifier -> Modifier
@@ -511,16 +511,16 @@ implementation m = case m of
   --- 1-modifiers ---
   Arity2 -> Modifier1 $ convertArity 2
   Arity3 -> Modifier1 $ convertArity 3
-  Dropwhile -> Modifier1 (\f -> monadic (ValList . dropWhile' f . listOrSingleton))
-  Filter -> Modifier1 (\f -> monadic (ValList . filter' f . listOrSingleton))
+  Dropwhile -> Modifier1 (\f -> monadic (toValue . dropWhile' f . fromValue))
+  Filter -> Modifier1 (\f -> monadic (toValue . filter' f . fromValue))
   Fixiter -> Modifier1 fixiter
   Fixpoint -> Modifier1 fixpoint
   Flatmap -> Modifier1 (\f -> BF.fnFlatten <> mapZipping f)
   Flip -> Modifier1 flipArgs
-  Foldl -> Modifier1 (\f -> dyadic (\x ys -> foldl' f x $ listOrSingleton ys))
-  Foldl1 -> Modifier1 (\f -> monadic (\xs -> foldl1' f $ listOrSingleton xs))
-  Foldr -> Modifier1 (\f -> dyadic (\x ys -> foldr' f x $ listOrSingleton ys))
-  Foldr1 -> Modifier1 (\f -> monadic (\xs -> foldr1' f $ listOrSingleton xs))
+  Foldl -> Modifier1 (\f -> dyadic (\x ys -> foldl' f x $ fromValue ys))
+  Foldl1 -> Modifier1 (\f -> monadic (\xs -> foldl1' f $ fromValue xs))
+  Foldr -> Modifier1 (\f -> dyadic (\x ys -> foldr' f x $ fromValue ys))
+  Foldr1 -> Modifier1 (\f -> monadic (\xs -> foldr1' f $ fromValue xs))
   Invariant -> Modifier1 (\f -> hook BF.fnSame f)
   Iterate -> Modifier1 iterate'
   Lmap -> Modifier1 mapLeft
@@ -529,10 +529,10 @@ implementation m = case m of
   Not -> Modifier1 (BF.fnNot <>)
   Rmap -> Modifier1 mapRight
   Rotate -> Modifier1 rotateArgs
-  Scanl -> Modifier1 (\f -> dyadic (\x ys -> ValList $ scanl' f x $ listOrSingleton ys))
-  Scanl1 -> Modifier1 (\f -> monadic (\xs -> ValList $ scanl1' f $ listOrSingleton xs))
-  Scanr -> Modifier1 (\f -> dyadic (\x ys -> ValList $ scanr' f x $ listOrSingleton ys))
-  Scanr1 -> Modifier1 (\f -> monadic (\xs -> ValList $ scanr1' f $ listOrSingleton xs))
+  Scanl -> Modifier1 (\f -> dyadic (\x ys -> toValue $ scanl' f x $ fromValue ys))
+  Scanl1 -> Modifier1 (\f -> monadic (\xs -> toValue $ scanl1' f $ fromValue xs))
+  Scanr -> Modifier1 (\f -> dyadic (\x ys -> toValue $ scanr' f x $ fromValue ys))
+  Scanr1 -> Modifier1 (\f -> monadic (\xs -> toValue $ scanr1' f $ fromValue xs))
   Self -> Modifier1 $ convertArity 1
   Selftable -> Modifier1 $ convertArity 1 . table
   Table -> Modifier1 table

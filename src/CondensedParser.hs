@@ -14,7 +14,7 @@ import Text.ParserCombinators.ReadPrec (
   choice
   )
 import qualified Text.ParserCombinators.ReadP as ReadP
-import Value (Value (..))
+import Value (Value (..), toValue)
 import Command (Command (..))
 import qualified BuiltinFunction as BF
 import qualified BuiltinModifier as BM
@@ -167,16 +167,16 @@ stackOpAliases = [
 -- Constants that aren't number/character/string/list literals
 specialValues :: [(String, Value)]
 specialValues = [
-  ("#N1", ValList $ map ValNumber [1..]),
-  ("\\n", ValChar '\n'),
-  ("\\s", ValChar ' '),
+  ("#N1", toValue $ map ValNumber [1..]),
+  ("\\n", toValue '\n'),
+  ("\\s", toValue ' '),
   ("[]", ValList []),
-  ("$A", ValList $ map ValChar ['A'..'Z']),
-  ("$a", ValList $ map ValChar ['a'..'z']),
-  ("$0", ValList $ map ValChar ['0'..'9']),
+  ("$A", toValue ['A'..'Z']),
+  ("$a", toValue ['a'..'z']),
+  ("$0", toValue ['0'..'9']),
   ("#-", ValNumber (-1)),
   ("#t", ValNumber 10),
-  ("#N", ValList $ map ValNumber [0..])
+  ("#N", toValue $ map ValNumber [0..])
   ]
 
 -- Helper ReadPrec parsers for the Read instances below:
@@ -299,7 +299,7 @@ instance Read Token where
         numbers <- getNumbers
         '"' <- get
         case sequence (map readMaybe numbers) of
-          Just ns -> pure (Literal $ ValList $ map ValNumber ns)
+          Just ns -> pure (Literal $ toValue $ map ValNumber ns)
           Nothing -> pfail
       -- Match an interpolation/string literal like $"'a'b-$'c"
       readInterpolation = do

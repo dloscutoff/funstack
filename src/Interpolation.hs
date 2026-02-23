@@ -7,7 +7,7 @@ module Interpolation (
 
 import Text.Read (readPrec, readMaybe)
 import Text.ParserCombinators.ReadPrec (get, pfail)
-import Value (Value (..), stringToVal)
+import Value (Value (..), toValue)
 import Function (Function (..), bind)
 import BuiltinFunction (fnConcat, fnStringify)
 import BuiltinModifier (rcompose2)
@@ -44,7 +44,7 @@ condense [] = []
 function :: Interpolation -> Function
 function (ic : ics)
   | Interpolate <- ic = rcompose2 (fnConcat <> fnStringify) f'
-  | LiteralString s <- ic = bind fnConcat (stringToVal s) <> f'
+  | LiteralString s <- ic = bind fnConcat (toValue s) <> f'
   where
     f' = function ics
 function [] = Constant $ ValList []

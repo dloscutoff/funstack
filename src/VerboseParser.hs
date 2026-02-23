@@ -24,7 +24,7 @@ import Text.ParserCombinators.ReadPrec (
   )
 import qualified Text.ParserCombinators.ReadP as ReadP
 import GHC.Utils.Misc (capitalise)
-import Value (Value (..), chr')
+import Value (Value (..), toValue, chr')
 import Command (Command (..))
 import qualified BuiltinFunction as BF
 import qualified BuiltinModifier as BM
@@ -92,17 +92,17 @@ modifierAliases = Map.fromList [
 -- Constants that aren't number/character/string/list literals
 specialValues :: Map.Map String Value
 specialValues = Map.fromList [
-  ("\\t", ValChar '\t'),
-  ("\\n", ValChar '\n'),
-  ("\\s", ValChar ' '),
-  ("$A", ValList $ map ValChar ['A'..'Z']),
-  ("$a", ValList $ map ValChar ['a'..'z']),
-  ("$Aa", ValList $ map ValChar $ ['A'..'Z'] ++ ['a'..'z']),
-  ("$0", ValList $ map ValChar ['0'..'9']),
-  ("$P", ValList $ map ValChar [' '..'~']),
-  ("#N", ValList $ map ValNumber [0..]),
-  ("#N1", ValList $ map ValNumber [1..]),
-  ("#Z", ValList $ map ValNumber $ [1..] >>= (\n -> [1-n, n]))
+  ("\\t", toValue '\t'),
+  ("\\n", toValue '\n'),
+  ("\\s", toValue ' '),
+  ("$A", toValue ['A'..'Z']),
+  ("$a", toValue ['a'..'z']),
+  ("$Aa", toValue $ ['A'..'Z'] ++ ['a'..'z']),
+  ("$0", toValue ['0'..'9']),
+  ("$P", toValue [' '..'~']),
+  ("#N", toValue $ map ValNumber [0..]),
+  ("#N1", toValue $ map ValNumber [1..]),
+  ("#Z", toValue $ map ValNumber $ [1..] >>= (\n -> [1-n, n]))
   ]
 
 -- Helper ReadPrec parsers for the Read instances below:
@@ -228,7 +228,7 @@ instance Read Token where
         '\\' <- get
         charCode <- getDigits
         case readMaybe charCode of
-          Just n -> pure (Literal $ ValChar $ chr' n)
+          Just n -> pure (Literal $ toValue $ chr' n)
           Nothing -> pfail
       -- Match an interpolation string like `abc$xyz`
       readInterpolation = do

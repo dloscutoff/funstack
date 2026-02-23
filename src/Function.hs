@@ -28,10 +28,11 @@ module Function (
 import Value (
   Value (..),
   ScalarValue (..),
+  fromValue,
+  toValue,
   ord',
   chr',
-  scalarToInteger,
-  listOrSingleton
+  scalarToInteger
   )
 
 -- The Arity of a function is an Int
@@ -155,7 +156,7 @@ tetradic f = Function 4 (triadic . f)
 -- function that applies that function to non-ValList arguments and maps the
 -- function over ValList arguments
 mapOverList :: (ScalarValue -> Value) -> Value -> Value
-mapOverList f (ValList l) = ValList $ map (mapOverList f) l
+mapOverList f (ValList l) = toValue $ map (mapOverList f) l
 mapOverList f (ValNumber x) = f (ScalarNumber x)
 mapOverList f (ValChar c) = f (ScalarChar c)
 
@@ -164,9 +165,9 @@ mapOverList f (ValChar c) = f (ScalarChar c)
 -- the function over ValList arguments
 -- TODO: use some kind of zip-longest logic instead of zipWith
 mapOverLists :: (ScalarValue -> ScalarValue -> Value) -> Value -> Value -> Value
-mapOverLists f (ValList l) (ValList m) = ValList $ zipWith (mapOverLists f) l m
-mapOverLists f x (ValList l) = ValList $ map (mapOverLists f x) l
-mapOverLists f (ValList l) y = ValList $ map ((flip $ mapOverLists f) y) l
+mapOverLists f (ValList l) (ValList m) = toValue $ zipWith (mapOverLists f) l m
+mapOverLists f x (ValList l) = toValue $ map (mapOverLists f x) l
+mapOverLists f (ValList l) y = toValue $ map ((flip $ mapOverLists f) y) l
 mapOverLists f (ValNumber x) (ValNumber y) = f (ScalarNumber x) (ScalarNumber y)
 mapOverLists f (ValNumber x) (ValChar c) = f (ScalarNumber x) (ScalarChar c)
 mapOverLists f (ValChar c) (ValNumber x) = f (ScalarChar c) (ScalarNumber x)
@@ -176,7 +177,7 @@ mapOverLists f (ValChar c) (ValChar d) = f (ScalarChar c) (ScalarChar d)
 -- return a new function that applies that function to its arguments if the
 -- first argument is not a ValList and maps over a first argument that is a ValList
 mapOverLeftList :: (ScalarValue -> Value -> Value) -> Value -> Value -> Value
-mapOverLeftList f (ValList l) y = ValList [mapOverLeftList f x y | x <- l]
+mapOverLeftList f (ValList l) y = toValue [mapOverLeftList f x y | x <- l]
 mapOverLeftList f (ValNumber x) y = f (ScalarNumber x) y
 mapOverLeftList f (ValChar c) y = f (ScalarChar c) y
 
@@ -225,13 +226,13 @@ numberMathDyad = dyadic . mapOverLists . binaryNumberMath
 -- Function that treats ValChars as their charcodes and maps over ValLists
 numToListMonad :: (Integer -> [Integer]) -> Function
 numToListMonad = monadic . mapOverList . unaryNumToList
-  where unaryNumToList f = ValList . map ValNumber . f . scalarToInteger
+  where unaryNumToList f = toValue . map ValNumber . f . scalarToInteger
 
 -- Given a two-argument function from Integers to [Integer], return a dyadic
 -- Function that treats ValChars as their charcodes and maps over ValLists
 numToListDyad :: (Integer -> Integer -> [Integer]) -> Function
 numToListDyad = dyadic . mapOverLists . binaryNumToList
-  where binaryNumToList f x y = ValList $ map ValNumber $ f (scalarToInteger x) (scalarToInteger y)
+  where binaryNumToList f x y = toValue $ map ValNumber $ f (scalarToInteger x) (scalarToInteger y)
 
 -- Given a two-argument function from Integer and [Value] to Value, return
 -- a dyadic Function:
@@ -239,4 +240,4 @@ numToListDyad = dyadic . mapOverLists . binaryNumToList
 --  Second argument: convert non-ValList to singleton ValList
 numAndListDyad :: (Integer -> [Value] -> Value) -> Function
 numAndListDyad = dyadic . mapOverLeftList . numAndListToList
-  where numAndListToList f x y = f (scalarToInteger x) (listOrSingleton y)
+  where numAndListToList f x y = f (scalarToInteger x) (fromValue y)
