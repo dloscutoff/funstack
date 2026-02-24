@@ -167,7 +167,7 @@ stackOpAliases = [
 -- Constants that aren't number/character/string/list literals
 specialValues :: [(String, Value)]
 specialValues = [
-  ("#N1", toValue $ map ValNumber [1..]),
+  ("#N1", toValue $ tail naturals),
   ("\\n", toValue '\n'),
   ("\\s", toValue ' '),
   ("[]", ValList []),
@@ -176,8 +176,9 @@ specialValues = [
   ("$0", toValue ['0'..'9']),
   ("#-", ValNumber (-1)),
   ("#t", ValNumber 10),
-  ("#N", toValue $ map ValNumber [0..])
+  ("#N", toValue naturals)
   ]
+  where naturals = [0 :: Integer ..]
 
 -- Helper ReadPrec parsers for the Read instances below:
 
@@ -273,8 +274,8 @@ instance Read Token where
       readDigitLiteral = do
         '#' <- get
         digit <- getDigit
-        case readMaybe [digit] of
-          Just n -> pure (Literal $ ValNumber n)
+        case readMaybe [digit] :: Maybe Integer of
+          Just n -> pure (Literal $ toValue n)
           Nothing -> pfail
       -- Match a character literal like ''x'
       readCharLiteral = do
@@ -282,15 +283,15 @@ instance Read Token where
         '\'' <- get
         char <- getNonSpaceChar
         '\'' <- get
-        pure (Literal $ ValChar char)
+        pure (Literal $ toValue char)
       -- Match a numeric literal like #"-123"
       readNumberLiteral = do
         '#' <- get
         '"' <- get
         number <- getNumber
         '"' <- get
-        case readMaybe number of
-          Just n -> pure (Literal $ ValNumber n)
+        case readMaybe number :: Maybe Integer of
+          Just n -> pure (Literal $ toValue n)
           Nothing -> pfail
       -- Match a numeric list literal like #"-12,345"
       readNumberListLiteral = do
@@ -298,8 +299,8 @@ instance Read Token where
         '"' <- get
         numbers <- getNumbers
         '"' <- get
-        case sequence (map readMaybe numbers) of
-          Just ns -> pure (Literal $ toValue $ map ValNumber ns)
+        case sequence (map readMaybe numbers) :: Maybe [Integer] of
+          Just ns -> pure (Literal $ toValue ns)
           Nothing -> pfail
       -- Match an interpolation/string literal like $"'a'b-$'c"
       readInterpolation = do

@@ -157,17 +157,17 @@ boolToInteger = toInteger . fromEnum
 -- Given two ScalarValues, generate an inclusive range from the first to
 -- the second, coercing to the type of the second argument
 inclRange :: ScalarValue -> ScalarValue -> Value
-inclRange x (ScalarNumber y) = toValue $ map ValNumber [scalarToInteger x..y]
-inclRange x (ScalarChar c) = toValue [chr' n..c]
+inclRange x (ScalarNumber y) = toValue [scalarToInteger x .. y]
+inclRange x (ScalarChar c) = toValue [chr' n .. c]
   where n = max 0 (scalarToInteger x)
 
 -- Given two ScalarValues, generate an exclusive range from the first to
 -- the second, coercing to the type of the second argument
 exclRange :: ScalarValue -> ScalarValue -> Value
-exclRange x (ScalarNumber y) = toValue $ map ValNumber [scalarToInteger x..y-1]
+exclRange x (ScalarNumber y) = toValue [scalarToInteger x .. y-1]
 exclRange x (ScalarChar c)
   | c == minBound = ValList []
-  | otherwise = toValue [chr' n..pred c]
+  | otherwise = toValue [chr' n .. pred c]
   where n = max 0 (scalarToInteger x)
 
 -- Take the first n elements from a list; if n is negative, take elements

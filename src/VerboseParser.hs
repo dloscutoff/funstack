@@ -100,10 +100,11 @@ specialValues = Map.fromList [
   ("$Aa", toValue $ ['A'..'Z'] ++ ['a'..'z']),
   ("$0", toValue ['0'..'9']),
   ("$P", toValue [' '..'~']),
-  ("#N", toValue $ map ValNumber [0..]),
-  ("#N1", toValue $ map ValNumber [1..]),
-  ("#Z", toValue $ map ValNumber $ [1..] >>= (\n -> [1-n, n]))
+  ("#N", toValue naturals),
+  ("#N1", toValue $ tail naturals),
+  ("#Z", toValue $ naturals >>= (\n -> [-n, n+1]))
   ]
+  where naturals = [0 :: Integer ..]
 
 -- Helper ReadPrec parsers for the Read instances below:
 

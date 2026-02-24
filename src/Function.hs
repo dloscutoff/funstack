@@ -216,25 +216,25 @@ charMathDyad = dyadic . mapOverLists . binaryCharMath
 -- treats ValChars as their charcodes and maps over ValLists
 numberMathMonad :: (Integer -> Integer) -> Function
 numberMathMonad = monadic . mapOverList . unaryNumberMath
-  where unaryNumberMath f = ValNumber . f . scalarToInteger
+  where unaryNumberMath f x = toValue $ f (scalarToInteger x)
 
 -- Given a two-argument function over Integers, return a dyadic Function that
 -- treats ValChars as their charcodes and maps over ValLists
 numberMathDyad :: (Integer -> Integer -> Integer) -> Function
 numberMathDyad = dyadic . mapOverLists . binaryNumberMath
-  where binaryNumberMath f x y = ValNumber $ f (scalarToInteger x) (scalarToInteger y)
+  where binaryNumberMath f x y = toValue $ f (scalarToInteger x) (scalarToInteger y)
 
 -- Given a one-argument function from Integer to [Integer], return a monadic
 -- Function that treats ValChars as their charcodes and maps over ValLists
 numToListMonad :: (Integer -> [Integer]) -> Function
 numToListMonad = monadic . mapOverList . unaryNumToList
-  where unaryNumToList f = toValue . map ValNumber . f . scalarToInteger
+  where unaryNumToList f x = toValue $ f (scalarToInteger x)
 
 -- Given a two-argument function from Integers to [Integer], return a dyadic
 -- Function that treats ValChars as their charcodes and maps over ValLists
 numToListDyad :: (Integer -> Integer -> [Integer]) -> Function
 numToListDyad = dyadic . mapOverLists . binaryNumToList
-  where binaryNumToList f x y = toValue $ map ValNumber $ f (scalarToInteger x) (scalarToInteger y)
+  where binaryNumToList f x y = toValue $ f (scalarToInteger x) (scalarToInteger y)
 
 -- Given a one-argument function from [Value] to some type convertible to Value,
 -- return a monadic Function that applies to ValLists and wraps other Values in

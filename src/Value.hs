@@ -84,6 +84,9 @@ class ToValue a where
 instance ToValue Value where
   toValue = id
 
+instance ToValue Integer where
+  toValue = ValNumber
+
 instance ToValue Char where
   toValue = ValChar
 
