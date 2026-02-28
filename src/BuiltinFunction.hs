@@ -24,6 +24,7 @@ import Data.List (
   genericIndex,
   genericReplicate
   )
+import Number (Number, toNumber)
 import Value (
   Value (..),
   ScalarValue (..),
@@ -32,14 +33,14 @@ import Value (
   toValue,
   chr',
   valToString,
-  scalarToInteger,
+  scalarToNumber,
   listOrString,
   sameTypeFalsey,
   depth,
   uniformDepth,
   flattenOnce,
   flattenAll,
-  toIntegerList
+  toNumberList
   )
 import Function (
   Function,
@@ -151,35 +152,35 @@ data BuiltinFunction =
   deriving (Show, Read)
 
 -- Convert True to 1 and False to 0
-boolToInteger :: Bool -> Integer
-boolToInteger = toInteger . fromEnum
+boolToNumber :: Bool -> Number
+boolToNumber = toNumber . fromEnum
 
 -- Given two ScalarValues, generate an inclusive range from the first to
 -- the second, coercing to the type of the second argument
 inclRange :: ScalarValue -> ScalarValue -> Value
-inclRange x (ScalarNumber y) = toValue [scalarToInteger x .. y]
+inclRange x (ScalarNumber y) = toValue [scalarToNumber x .. y]
 inclRange x (ScalarChar c) = toValue [chr' n .. c]
-  where n = max 0 (scalarToInteger x)
+  where n = max 0 (scalarToNumber x)
 
 -- Given two ScalarValues, generate an exclusive range from the first to
 -- the second, coercing to the type of the second argument
 exclRange :: ScalarValue -> ScalarValue -> Value
-exclRange x (ScalarNumber y) = toValue [scalarToInteger x .. y-1]
+exclRange x (ScalarNumber y) = toValue [scalarToNumber x .. y-1]
 exclRange x (ScalarChar c)
   | c == minBound = List []
   | otherwise = toValue [chr' n .. pred c]
-  where n = max 0 (scalarToInteger x)
+  where n = max 0 (scalarToNumber x)
 
 -- Take the first n elements from a list; if n is negative, take elements
 -- from the end
-take' :: Integer -> [a] -> [a]
+take' :: Number -> [a] -> [a]
 take' n
   | n >= 0 = genericTake n
   | otherwise = reverse . genericTake (abs n) . reverse
 
 -- Drop the first n elements from a list; if n is negative, drop elements
 -- from the end
-drop' :: Integer -> [a] -> [a]
+drop' :: Number -> [a] -> [a]
 drop' n
   | n >= 0 = genericDrop n
   | otherwise = reverse . genericDrop (abs n) . reverse
@@ -192,7 +193,7 @@ cycle' xs = cycle xs
 
 -- Take the first n elements from a list, repeating as necessary; if n is
 -- negative, take elements starting from the end
-takeCycle :: Integer -> [a] -> [a]
+takeCycle :: Number -> [a] -> [a]
 takeCycle n
   | n >= 0 = genericTake n . cycle'
   | otherwise = reverse . genericTake (abs n) . cycle' . reverse
@@ -205,17 +206,17 @@ init' xs = init xs
 
 -- Get the nth element in a list, repeating as necessary; if n is negative,
 -- count backwards from the end
-indexCycle :: [a] -> Integer -> a
+indexCycle :: [a] -> Number -> a
 indexCycle l n
   | n >= 0 = genericIndex (cycle' l) n
   | otherwise = genericIndex (cycle' $ reverse l) (abs n - 1)
 
 -- Repeat the contents of a list n times
-repeat' :: Integer -> [a] -> [a]
+repeat' :: Number -> [a] -> [a]
 repeat' n l = concat $ genericReplicate n l
 
 -- Rotate a list n elements to the left (to the right if n is negative)
-rotate :: Integer -> [a] -> [a]
+rotate :: Number -> [a] -> [a]
 rotate _ [] = []
 rotate 0 l = l
 rotate n l
@@ -231,24 +232,24 @@ windows :: Integral a => a -> [b] -> [[b]]
 windows n
   | n < 0 = reverse . windows (abs n)
   | n == 0 = tail . subsequences
-  | otherwise = unfoldr (\l -> if null (drop' (toInteger n - 1) l)
+  | otherwise = unfoldr (\l -> if null (drop' (toNumber n - 1) l)
                                then Nothing
-                               else Just (take' (toInteger n) l, tail l))
+                               else Just (take' (toNumber n) l, tail l))
 
 -- Take chunks (contiguous sublists) of the given sizes from a list
 -- If a chunk size is negative, take from the end of the list
-chunks :: [Integer] -> [a] -> [[a]]
+chunks :: [Number] -> [a] -> [[a]]
 chunks [] _ = []
 chunks _ [] = []
 chunks (x : xs) l = take' x l : chunks xs (drop' x l)
 
 -- Divide a list into n roughly equal-size chunks
-partition :: Integer -> [a] -> [[a]]
+partition :: Number -> [a] -> [[a]]
 partition n l
   | n < 0 = map reverse $ partition (-n) (reverse l)
   | otherwise = chunks (chunkSizes n (genericLength l)) l
   where
-    chunkSizes :: Integer -> Integer -> [Integer]
+    chunkSizes :: Number -> Number -> [Number]
     chunkSizes 0 _ = []
     chunkSizes count totalSize = size : chunkSizes (count - 1) (totalSize - size)
       where size = totalSize `div` count
@@ -269,7 +270,7 @@ interleave (x : xs) l = x : interleave l xs
 --  If the base is -1, convert to a base -1 system that uses digits 0 and 1
 --  If the base is 1, convert to unary (bijective base 1)
 -- TODO: algorithm that returns positive digits for negative bases
-toBase :: Integer -> Integer -> [Integer]
+toBase :: Number -> Number -> [Number]
 toBase _ 0 = []
 toBase 0 x = [x]
 toBase (-1) x
@@ -282,14 +283,14 @@ toBase b x
 
 -- Taking the second argument as a list of digits (least-significant first)
 -- in the base given by the first argument, convert it to a single number
-fromBase :: Integer -> [Integer] -> Integer
+fromBase :: Number -> [Number] -> Number
 fromBase b ds = foldr (\d n -> n * b + d) 0 ds
 
--- Base conversion function that takes an Integer and a list of Values
+-- Base conversion function that takes a Number and a list of Values
 -- and returns a Value
 -- Flattens second argument and treats characters as their charcodes
-valsFromBase :: Integer -> [Value] -> Value
-valsFromBase b ds = toValue $ fromBase b $ map scalarToInteger $ flattenAll ds
+valsFromBase :: Number -> [Value] -> Value
+valsFromBase b ds = toValue $ fromBase b $ map scalarToNumber $ flattenAll ds
 
 -- Given a list of Values, prepend a falsey Value of the same type as the
 -- first element in the list
@@ -361,12 +362,12 @@ implementation f = case f of
   Maximum -> listMonad $ maximum . map toValue . flattenAll
   Minimum -> listMonad $ minimum . map toValue . flattenAll
   Neg -> numberMathMonad (0 -)
-  Negative -> numberMathMonad $ boolToInteger . (< 0)
+  Negative -> numberMathMonad $ boolToNumber . (< 0)
   Not -> fnNot
   Nub -> listMonad nub
   Parity -> numberMathMonad (`mod` 2)
-  Positive -> numberMathMonad $ boolToInteger . (> 0)
-  Product -> monadic $ Scalar . ScalarNumber . product . toIntegerList
+  Positive -> numberMathMonad $ boolToNumber . (> 0)
+  Product -> monadic $ Scalar . ScalarNumber . product . toNumberList
   Read -> monadic $ read . valToString
   Reverse -> listMonad reverse
   Show -> monadic $ toValue . show
@@ -374,37 +375,37 @@ implementation f = case f of
   Sort -> listMonad sort
   Square -> numberMathMonad (\x -> x * x)
   Stringify -> fnStringify
-  Sum -> monadic $ Scalar . ScalarNumber . sum . toIntegerList
+  Sum -> monadic $ Scalar . ScalarNumber . sum . toNumberList
   Tail -> listMonad $ drop 1
   Tails -> listMonad tails
   TruthyIndices -> listMonad (\l -> [Scalar $ ScalarNumber i | (i, x) <- zip [0..] l, fromValue x :: Bool])
   UniformDepth -> monadic $ Scalar . ScalarNumber . uniformDepth
   Wrap -> monadic (\x -> toValue [x])
-  Zero -> numberMathMonad $ boolToInteger . (== 0)
+  Zero -> numberMathMonad $ boolToNumber . (== 0)
   --- Arity 2 ---
   At -> numAndListDyad $ flip genericIndex
   AtCycle -> numAndListDyad $ flip indexCycle
-  Chunks -> dyadic (\x y -> toValue $ chunks (cycle' $ toIntegerList x) (fromValue y :: [Value]))
+  Chunks -> dyadic (\x y -> toValue $ chunks (cycle' $ toNumberList x) (fromValue y :: [Value]))
   Compare -> dyadic (\x y -> toValue $ y `compare` x)
   Concat -> fnConcat
   Cons -> dyadic (\x y -> toValue $ x : fromValue y)
   Consr -> dyadic (\x y -> toValue $ fromValue y ++ [x])
   Const -> dyadic const
   Drop -> numAndListDyad $ (toValue .) . drop'
-  Equal -> numberMathDyad $ (boolToInteger .) . (==)
+  Equal -> numberMathDyad $ (boolToNumber .) . (==)
   FromBase -> numAndListDyad valsFromBase
-  Greater -> numberMathDyad $ (boolToInteger .) . flip (>)
-  GreaterEqual -> numberMathDyad $ (boolToInteger .) . flip (>=)
+  Greater -> numberMathDyad $ (boolToNumber .) . flip (>)
+  GreaterEqual -> numberMathDyad $ (boolToNumber .) . flip (>=)
   IDiv -> numberMathDyad $ flip div
   IRange -> dyadic $ mapOverLists inclRange
   Interleave -> dyadic (\x y -> toValue $ interleave (fromValue x) (fromValue y :: [Value]))
-  Less -> numberMathDyad $ (boolToInteger .) . flip (<)
-  LessEqual -> numberMathDyad $ (boolToInteger .) . flip (<=)
+  Less -> numberMathDyad $ (boolToNumber .) . flip (<)
+  LessEqual -> numberMathDyad $ (boolToNumber .) . flip (<=)
   Max -> dyadic max
   Min -> dyadic min
   Minus -> charMathDyad $ flip (-)
   Mod -> numberMathDyad $ flip mod
-  NotEqual -> numberMathDyad $ (boolToInteger .) . (/=)
+  NotEqual -> numberMathDyad $ (boolToNumber .) . (/=)
   NotSame -> dyadic $ (toValue .) . (/=)
   Pair -> fnPair
   Partition -> numAndListDyad $ (toValue .) . partition

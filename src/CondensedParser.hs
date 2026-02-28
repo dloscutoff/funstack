@@ -14,6 +14,7 @@ import Text.ParserCombinators.ReadPrec (
   choice
   )
 import qualified Text.ParserCombinators.ReadP as ReadP
+import Number (Number)
 import Value (Value (..), ScalarValue (..), toValue)
 import Command (Command (..))
 import qualified BuiltinFunction as BF
@@ -178,7 +179,7 @@ specialValues = [
   ("#t", Scalar $ ScalarNumber 10),
   ("#N", toValue naturals)
   ]
-  where naturals = [0 :: Integer ..]
+  where naturals = [0 :: Number ..]
 
 -- Helper ReadPrec parsers for the Read instances below:
 
@@ -274,7 +275,7 @@ instance Read Token where
       readDigitLiteral = do
         '#' <- get
         digit <- getDigit
-        case readMaybe [digit] :: Maybe Integer of
+        case readMaybe [digit] :: Maybe Number of
           Just n -> pure (Literal $ toValue n)
           Nothing -> pfail
       -- Match a character literal like ''x'
@@ -290,7 +291,7 @@ instance Read Token where
         '"' <- get
         number <- getNumber
         '"' <- get
-        case readMaybe number :: Maybe Integer of
+        case readMaybe number :: Maybe Number of
           Just n -> pure (Literal $ toValue n)
           Nothing -> pfail
       -- Match a numeric list literal like #"-12,345"
@@ -299,7 +300,7 @@ instance Read Token where
         '"' <- get
         numbers <- getNumbers
         '"' <- get
-        case sequence (map readMaybe numbers) :: Maybe [Integer] of
+        case sequence (map readMaybe numbers) :: Maybe [Number] of
           Just ns -> pure (Literal $ toValue ns)
           Nothing -> pfail
       -- Match an interpolation/string literal like $"'a'b-$'c"

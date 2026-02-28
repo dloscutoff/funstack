@@ -12,6 +12,7 @@ and this project adheres to the
 - Builtins: Group
 - Modifiers: arity2, arity3, filter, treeunfold
 - Stack operations: !dup2, !swap2
+- Rational number support
 - String interpolation syntax
 
 ### Changed

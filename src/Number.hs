@@ -1,7 +1,9 @@
 module Number (
   Number (..),
   numerator,
-  denominator
+  denominator,
+  toNumber,
+  naturals
 ) where
 
 import Text.Read (readPrec)
@@ -82,3 +84,11 @@ instance Integral Number where
     | (_ :% 0) <- n / m = (n / m, 0)
     | (q, r) <- properFraction (n / m) = (q :% 1, r * m)
   toInteger n = fst $ properFraction n
+
+-- Convert some other numeric type to a Number
+toNumber :: Real a => a -> Number
+toNumber = fromRational . toRational
+
+-- The natural numbers, as Numbers
+naturals :: [Number]
+naturals = [0..]

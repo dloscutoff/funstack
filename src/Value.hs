@@ -9,18 +9,19 @@ module Value (
   ord',
   chr',
   valToString,
-  scalarToInteger,
+  scalarToNumber,
   listOrString,
   sameTypeFalsey,
   depth,
   uniformDepth,
   flattenOnce,
   flattenAll,
-  toIntegerList
+  toNumberList
 ) where
 
 import Text.Read (readPrec)
 import Text.ParserCombinators.ReadPrec (ReadPrec, choice, (<++))
+import Number (Number, toNumber)
 
 -- Value is the main data type for values in FunStack:
 --  List represents a list containing other Values (potentially of
@@ -79,7 +80,7 @@ class ToValue a where
 instance ToValue Value where
   toValue = id
 
-instance ToValue Integer where
+instance ToValue Number where
   toValue = Scalar . ScalarNumber
 
 instance ToValue Char where
@@ -102,7 +103,7 @@ instance (ToValue a) => ToValue [a] where
 
 -- ScalarValue is a helper type that does not include lists
 data ScalarValue =
-  ScalarNumber Integer |
+  ScalarNumber Number |
   ScalarChar Char
   deriving (Eq)
 
@@ -121,7 +122,7 @@ instance ToValue ScalarValue where
 -- DisplayValue is a helper type that distinguishes between strings (lists
 -- of characters) and other lists to facilitate displaying them differently
 data DisplayValue =
-  AsNumber Integer |
+  AsNumber Number |
   AsChar Char |
   AsString String |
   AsList [Value]
@@ -169,15 +170,15 @@ instance Read DisplayValue where
     (AsList <$> readPrec) <++ (AsString <$> readPrec)
     ]
 
--- Given a Char, return its codepoint as an Integer
-ord' :: Char -> Integer
-ord' = toInteger . fromEnum
+-- Given a Char, return its codepoint as a Number
+ord' :: Char -> Number
+ord' = toNumber . fromEnum
 
--- Given an Integer, return the corresponding Char
--- If the Integer is out of bounds, reduce it modulo the maximum Unicode
+-- Given a Number, return the corresponding Char
+-- If the Number is out of bounds, reduce it modulo the maximum Unicode
 -- codepoint plus 1
-chr' :: Integer -> Char
-chr' = toEnum . fromInteger . (`mod` totalChars)
+chr' :: Number -> Char
+chr' = toEnum . fromInteger . (`mod` totalChars) . toInteger
   where totalChars = toInteger $ 1 + fromEnum (maxBound :: Char)
 
 -- Convert a Value to a String
@@ -190,12 +191,12 @@ valToString = toString . fromValue
     toString (AsString s) = s
     toString x = show x
 
--- Convert a ScalarValue to an Integer
---  If it is a ScalarNumber, return the corresponding Integer
+-- Convert a ScalarValue to a Number
+--  If it is a ScalarNumber, return the corresponding Number
 --  If it is a ScalarChar, return its codepoint
-scalarToInteger :: ScalarValue -> Integer
-scalarToInteger (ScalarNumber n) = n
-scalarToInteger (ScalarChar c) = ord' c
+scalarToNumber :: ScalarValue -> Number
+scalarToNumber (ScalarNumber n) = n
+scalarToNumber (ScalarChar c) = ord' c
 
 -- Given a List, return it as a [Value]; given any other Value, stringify
 -- it and return its characters as a list of Scalars
@@ -213,7 +214,7 @@ sameTypeFalsey (List _) = List []
 --  Depth of a Scalar is 0
 --  Depth of an empty List is 1
 --  Depth of a nonempty List is 1 plus the depth of its deepest element
-depth :: Value -> Integer
+depth :: Value -> Number
 depth (Scalar _) = 0
 depth (List []) = 1
 depth (List l) = 1 + maximum (map depth l)
@@ -226,7 +227,7 @@ depth (List l) = 1 + maximum (map depth l)
 --   element
 --  Uniform depth of an empty List or a Scalar is the same as its
 --   regular depth
-uniformDepth :: Value -> Integer
+uniformDepth :: Value -> Number
 uniformDepth (List (r : _)) = 1 + uniformDepth r
 uniformDepth x = depth x
 
@@ -242,9 +243,9 @@ flattenAll [] = []
 flattenAll (Scalar x : xs) = x : flattenAll xs
 flattenAll (List l : xs) = flattenAll l ++ flattenAll xs
 
--- Take a Value and convert it to a list of Integers:
+-- Take a Value and convert it to a list of Numbers:
 --  If it's a Scalar, wrap it in a singleton list
 --  Flatten the list
 --  Convert any characters in the result to their codepoints
-toIntegerList :: Value -> [Integer]
-toIntegerList = map scalarToInteger . flattenAll . fromValue
+toNumberList :: Value -> [Number]
+toNumberList = map scalarToNumber . flattenAll . fromValue

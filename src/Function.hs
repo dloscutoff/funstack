@@ -26,6 +26,7 @@ module Function (
   numAndListDyad
 ) where
 
+import Number (Number)
 import Value (
   Value (..),
   ScalarValue (..),
@@ -34,7 +35,7 @@ import Value (
   toValue,
   ord',
   chr',
-  scalarToInteger
+  scalarToNumber
   )
 
 -- The Arity of a function is an Int
@@ -178,58 +179,58 @@ mapOverLeftList :: (ScalarValue -> Value -> Value) -> Value -> Value -> Value
 mapOverLeftList f (List l) y = toValue $ map ((flip $ mapOverLeftList f) y) l
 mapOverLeftList f (Scalar x) y = f x y
 
--- Convert a function from Integer to Integer to a function from ScalarValue
+-- Convert a function from Number to Number to a function from ScalarValue
 -- to Value that, given a ScalarChar, applies the original function to its
 -- charcode and converts the result back to a ScalarChar
-unaryCharMath :: (Integer -> Integer) -> ScalarValue -> Value
+unaryCharMath :: (Number -> Number) -> ScalarValue -> Value
 unaryCharMath f (ScalarNumber x) = Scalar $ ScalarNumber $ f x
 unaryCharMath f (ScalarChar c) = Scalar $ ScalarChar $ chr' $ f $ ord' c
 
--- Convert a two-argument function over Integers to a function from two
+-- Convert a two-argument function over Numbers to a function from two
 -- ScalarValues to Value that applies the original function to the underlying
 -- numbers or charcodes and:
 --  Given one ScalarChar and one ScalarNumber, converts the result to a ScalarChar
 --  Given two ScalarChar or two ScalarNumbers, converts the result to a ScalarNumber
-binaryCharMath :: (Integer -> Integer -> Integer) -> ScalarValue -> ScalarValue -> Value
+binaryCharMath :: (Number -> Number -> Number) -> ScalarValue -> ScalarValue -> Value
 binaryCharMath f (ScalarNumber x) (ScalarNumber y) = Scalar $ ScalarNumber $ f x y
 binaryCharMath f (ScalarNumber x) (ScalarChar c) = Scalar $ ScalarChar $ chr' $ f x (ord' c)
 binaryCharMath f (ScalarChar c) (ScalarNumber x) = Scalar $ ScalarChar $ chr' $ f (ord' c) x
 binaryCharMath f (ScalarChar c) (ScalarChar d) = Scalar $ ScalarNumber $ f (ord' c) (ord' d)
 
--- Given a one-argument function over Integers, return a monadic Function that
+-- Given a one-argument function over Numbers, return a monadic Function that
 -- takes numbers to numbers, chars to chars, and maps over Lists
-charMathMonad :: (Integer -> Integer) -> Function
+charMathMonad :: (Number -> Number) -> Function
 charMathMonad = monadic . mapOverList . unaryCharMath
 
--- Given a two-argument function over Integers, return a dyadic Function that
+-- Given a two-argument function over Numbers, return a dyadic Function that
 -- takes number + number or char + char to number, number + char
 -- or char + number to char, and maps over Lists
-charMathDyad :: (Integer -> Integer -> Integer) -> Function
+charMathDyad :: (Number -> Number -> Number) -> Function
 charMathDyad = dyadic . mapOverLists . binaryCharMath
 
--- Given a one-argument function over Integers, return a monadic Function that
+-- Given a one-argument function over Numbers, return a monadic Function that
 -- treats chars as their charcodes and maps over Lists
-numberMathMonad :: (Integer -> Integer) -> Function
+numberMathMonad :: (Number -> Number) -> Function
 numberMathMonad = monadic . mapOverList . unaryNumberMath
-  where unaryNumberMath f x = toValue $ f (scalarToInteger x)
+  where unaryNumberMath f x = toValue $ f (scalarToNumber x)
 
--- Given a two-argument function over Integers, return a dyadic Function that
+-- Given a two-argument function over Numbers, return a dyadic Function that
 -- treats chars as their charcodes and maps over Lists
-numberMathDyad :: (Integer -> Integer -> Integer) -> Function
+numberMathDyad :: (Number -> Number -> Number) -> Function
 numberMathDyad = dyadic . mapOverLists . binaryNumberMath
-  where binaryNumberMath f x y = toValue $ f (scalarToInteger x) (scalarToInteger y)
+  where binaryNumberMath f x y = toValue $ f (scalarToNumber x) (scalarToNumber y)
 
--- Given a one-argument function from Integer to [Integer], return a monadic
+-- Given a one-argument function from Number to [Number], return a monadic
 -- Function that treats chars as their charcodes and maps over Lists
-numToListMonad :: (Integer -> [Integer]) -> Function
+numToListMonad :: (Number -> [Number]) -> Function
 numToListMonad = monadic . mapOverList . unaryNumToList
-  where unaryNumToList f x = toValue $ f (scalarToInteger x)
+  where unaryNumToList f x = toValue $ f (scalarToNumber x)
 
--- Given a two-argument function from Integers to [Integer], return a dyadic
+-- Given a two-argument function from Numbers to [Number], return a dyadic
 -- Function that treats chars as their charcodes and maps over Lists
-numToListDyad :: (Integer -> Integer -> [Integer]) -> Function
+numToListDyad :: (Number -> Number -> [Number]) -> Function
 numToListDyad = dyadic . mapOverLists . binaryNumToList
-  where binaryNumToList f x y = toValue $ f (scalarToInteger x) (scalarToInteger y)
+  where binaryNumToList f x y = toValue $ f (scalarToNumber x) (scalarToNumber y)
 
 -- Given a one-argument function from [Value] to some type convertible to Value,
 -- return a monadic Function that applies to Lists and wraps Scalars in
@@ -237,10 +238,10 @@ numToListDyad = dyadic . mapOverLists . binaryNumToList
 listMonad :: (ToValue a) => ([Value] -> a) -> Function
 listMonad f = monadic $ toValue . f . fromValue
 
--- Given a two-argument function from Integer and [Value] to Value, return
+-- Given a two-argument function from Number and [Value] to Value, return
 -- a dyadic Function:
 --  First argument: treat chars as their charcodes and map over Lists
 --  Second argument: convert non-List to singleton List
-numAndListDyad :: (Integer -> [Value] -> Value) -> Function
+numAndListDyad :: (Number -> [Value] -> Value) -> Function
 numAndListDyad = dyadic . mapOverLeftList . numAndListToList
-  where numAndListToList f x y = f (scalarToInteger x) (fromValue y)
+  where numAndListToList f x y = f (scalarToNumber x) (fromValue y)

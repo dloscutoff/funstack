@@ -24,6 +24,7 @@ import Text.ParserCombinators.ReadPrec (
   )
 import qualified Text.ParserCombinators.ReadP as ReadP
 import GHC.Utils.Misc (capitalise)
+import Number (Number)
 import Value (Value (..), toValue, chr')
 import Command (Command (..))
 import qualified BuiltinFunction as BF
@@ -104,7 +105,7 @@ specialValues = Map.fromList [
   ("#N1", toValue $ tail naturals),
   ("#Z", toValue $ naturals >>= (\n -> [-n, n+1]))
   ]
-  where naturals = [0 :: Integer ..]
+  where naturals = [0 :: Number ..]
 
 -- Helper ReadPrec parsers for the Read instances below:
 
