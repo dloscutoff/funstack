@@ -23,14 +23,13 @@ import Text.Read (readPrec)
 import Text.ParserCombinators.ReadPrec (ReadPrec, choice, (<++))
 
 -- Value is the main data type for values in FunStack:
---  ValNumber represents an arbitrary-size integer
---  ValChar represents a single Unicode character
---  ValList represents a list containing other Values (potentially of
---   different types, including other ValLists)
+--  List represents a list containing other Values (potentially of
+--   different types, including other Lists)
+--  Scalar represents a non-list (number or character; see ScalarValue
+--   for details)
 data Value =
-  ValNumber Integer |
-  ValChar Char |
-  ValList [Value]
+  List [Value] |
+  Scalar ScalarValue
   deriving (Eq)
 
 -- To show a Value, convert it to a DisplayValue (see below) and show that
@@ -42,17 +41,13 @@ instance Read Value where
   readPrec = toValue <$> (readPrec :: ReadPrec DisplayValue)
 
 -- Values exist in a total ordering:
---  ValChars are less than ValNumbers
---  ValNumbers are less than ValLists
+--  Scalars are less than Lists
 --  If both values have the same type, compare their contents
 instance Ord Value where
-  (ValChar c) `compare` (ValChar d) = c `compare` d
-  (ValChar _) `compare` _ = LT
-  _ `compare` (ValChar _) = GT
-  (ValNumber x) `compare` (ValNumber y) = x `compare` y
-  (ValNumber _) `compare` _ = LT
-  _ `compare` (ValNumber _) = GT
-  (ValList l) `compare` (ValList m) = l `compare` m
+  (Scalar x) `compare` (Scalar y) = x `compare` y
+  (Scalar _) `compare` (List _) = LT
+  (List _) `compare` (Scalar _) = GT
+  (List l) `compare` (List m) = l `compare` m
 
 -- Typeclass for converting from Value to another type
 class FromValue a where
@@ -65,16 +60,16 @@ instance FromValue Bool where
   -- Convert a Value to a Bool
   -- Falsey: 0, '\0', and empty list/string
   -- Truthy: everything else
-  fromValue (ValNumber 0) = False
-  fromValue (ValChar '\0') = False
-  fromValue (ValList []) = False
+  fromValue (Scalar (ScalarNumber 0)) = False
+  fromValue (Scalar (ScalarChar '\0')) = False
+  fromValue (List []) = False
   fromValue _ = True
 
 instance (FromValue a) => FromValue [a] where
   -- Convert from a Value to a list of any FromValue type
-  -- Given a ValList, return it as a Haskell list; given any other Value,
+  -- Given a List, return it as a Haskell list; given any other Value,
   -- wrap it in a singleton list
-  fromValue (ValList l) = map fromValue l
+  fromValue (List l) = map fromValue l
   fromValue x = [fromValue x]
 
 -- Typeclass for converting from another type to Value
@@ -85,33 +80,43 @@ instance ToValue Value where
   toValue = id
 
 instance ToValue Integer where
-  toValue = ValNumber
+  toValue = Scalar . ScalarNumber
 
 instance ToValue Char where
-  toValue = ValChar
+  toValue = Scalar . ScalarChar
 
 instance ToValue Bool where
-  toValue True = ValNumber 1
-  toValue False = ValNumber 0
+  -- Convert True and False to 1 and 0, respectively
+  toValue True = Scalar $ ScalarNumber 1
+  toValue False = Scalar $ ScalarNumber 0
 
 instance ToValue Ordering where
-  -- Convert LT, EQ, GT to ValNumber -1, ValNumber 0, or ValNumber 1, respectively
-  toValue LT = ValNumber (-1)
-  toValue EQ = ValNumber 0
-  toValue GT = ValNumber 1
+  -- Convert LT, EQ, GT to -1, 0, or 1, respectively
+  toValue LT = Scalar $ ScalarNumber (-1)
+  toValue EQ = Scalar $ ScalarNumber 0
+  toValue GT = Scalar $ ScalarNumber 1
 
 instance (ToValue a) => ToValue [a] where
   -- Convert from a list of any ToValue type to a Value
-  toValue l = ValList $ map toValue l
+  toValue l = List $ map toValue l
 
 -- ScalarValue is a helper type that does not include lists
 data ScalarValue =
   ScalarNumber Integer |
   ScalarChar Char
+  deriving (Eq)
+
+-- ScalarValues exist in a total ordering:
+--  ScalarChars are less than ScalarNumbers
+--  If both values have the same type, compare their contents
+instance Ord ScalarValue where
+  (ScalarChar c) `compare` (ScalarChar d) = c `compare` d
+  (ScalarChar _) `compare` (ScalarNumber _) = LT
+  (ScalarNumber _) `compare` (ScalarChar _) = GT
+  (ScalarNumber x) `compare` (ScalarNumber y) = x `compare` y
 
 instance ToValue ScalarValue where
-  toValue (ScalarNumber n) = ValNumber n
-  toValue (ScalarChar c) = ValChar c
+  toValue = Scalar
 
 -- DisplayValue is a helper type that distinguishes between strings (lists
 -- of characters) and other lists to facilitate displaying them differently
@@ -122,33 +127,33 @@ data DisplayValue =
   AsList [Value]
 
 instance FromValue DisplayValue where
-  -- ValNumber and ValChar correspond directly to AsNumber and AsChar;
-  -- a ValList could be either AsList or AsString
-  --  ValLists are considered to be strings if they are nonempty and
-  --   contain only ValChars; otherwise, they are considered to be lists
+  -- ScalarNumber and ScalarChar correspond directly to AsNumber and AsChar;
+  -- a List could be either AsList or AsString
+  --  Lists are considered to be strings if they are nonempty and
+  --   contain only ScalarChars; otherwise, they are considered to be lists
   --  In practice, it is not possible to check the entire list because it could
   --   be infinite, so we check the first 1,000 elements
-  --  If a supposed string turns out to contain non-ValChars after the first
-  --   1,000 elements, the non-ValChars are replaced with null characters
-  fromValue (ValNumber n) = AsNumber n
-  fromValue (ValChar c) = AsChar c
-  fromValue (ValList []) = AsList []
-  fromValue (ValList l)
+  --  If a supposed string turns out to contain non-characters after the first
+  --   1,000 elements, the non-characters are replaced with null characters
+  fromValue (Scalar (ScalarNumber n)) = AsNumber n
+  fromValue (Scalar (ScalarChar c)) = AsChar c
+  fromValue (List []) = AsList []
+  fromValue (List l)
     | isProbablyString l = AsString $ map valToChar l
     | otherwise = AsList l
     where
       isProbablyString = and . map isCharacter . take 1000
       isCharacter v
-        | (ValChar _) <- v = True
+        | (Scalar (ScalarChar _)) <- v = True
         | otherwise = False
       valToChar v
-        | (ValChar c) <- v = c
+        | (Scalar (ScalarChar c)) <- v = c
         | otherwise = '\0'
 
 instance ToValue DisplayValue where
-  toValue (AsNumber n) = ValNumber n
-  toValue (AsChar c) = ValChar c
-  toValue (AsList l) = ValList l
+  toValue (AsNumber n) = Scalar $ ScalarNumber n
+  toValue (AsChar c) = Scalar $ ScalarChar c
+  toValue (AsList l) = List l
   toValue (AsString s) = toValue s
 
 instance Show DisplayValue where
@@ -192,55 +197,53 @@ scalarToInteger :: ScalarValue -> Integer
 scalarToInteger (ScalarNumber n) = n
 scalarToInteger (ScalarChar c) = ord' c
 
--- Given a ValList, return it as a [Value]; given any other Value, stringify
--- it and return it as a list of ValChars
+-- Given a List, return it as a [Value]; given any other Value, stringify
+-- it and return its characters as a list of Scalars
 listOrString :: Value -> [Value]
-listOrString (ValList l) = l
-listOrString x = map ValChar $ valToString x
+listOrString (List l) = l
+listOrString x = map toValue $ valToString x
 
 -- Given a Value, return a falsey Value of the same type
 sameTypeFalsey :: Value -> Value
-sameTypeFalsey (ValNumber _) = ValNumber 0
-sameTypeFalsey (ValChar _) = ValChar '\0'
-sameTypeFalsey (ValList _) = ValList []
+sameTypeFalsey (Scalar (ScalarNumber _)) = Scalar $ ScalarNumber 0
+sameTypeFalsey (Scalar (ScalarChar _)) = Scalar $ ScalarChar '\0'
+sameTypeFalsey (List _) = List []
 
 -- Takes a Value and returns its depth:
---  Depth of a scalar is 0
---  Depth of an empty ValList is 1
---  Depth of a nonempty ValList is 1 plus the depth of its deepest element
+--  Depth of a Scalar is 0
+--  Depth of an empty List is 1
+--  Depth of a nonempty List is 1 plus the depth of its deepest element
 depth :: Value -> Integer
-depth (ValNumber _) = 0
-depth (ValChar _) = 0
-depth (ValList []) = 1
-depth (ValList l) = 1 + maximum (map depth l)
+depth (Scalar _) = 0
+depth (List []) = 1
+depth (List l) = 1 + maximum (map depth l)
 
--- Takes a Value that is assumed to be either a scalar or a uniformly
--- deeply nested ValList and returns its depth
+-- Takes a Value that is assumed to be either a Scalar or a uniformly
+-- deeply nested List and returns its depth
 -- Unlike depth, this function does not get into an infinite loop when given
--- an infinite ValList
---  Uniform depth of a nonempty ValList is 1 plus the depth of its first
+-- an infinite List
+--  Uniform depth of a nonempty List is 1 plus the depth of its first
 --   element
---  Uniform depth of an empty ValList or a scalar is the same as its
+--  Uniform depth of an empty List or a Scalar is the same as its
 --   regular depth
 uniformDepth :: Value -> Integer
-uniformDepth (ValList (r : _)) = 1 + uniformDepth r
+uniformDepth (List (r : _)) = 1 + uniformDepth r
 uniformDepth x = depth x
 
--- Take a list of Values; convert ValLists to Haskell lists and scalars to
+-- Take a list of Values; convert Lists to Haskell lists and Scalars to
 -- singleton lists, concatenate them all together, and return that list
 flattenOnce :: [Value] -> [Value]
 flattenOnce = concatMap fromValue
 
--- Take a list of Values that may include ValLists; return a flat list of
+-- Take a list of Values that may include Lists; return a flat list of
 -- ScalarValues
 flattenAll :: [Value] -> [ScalarValue]
 flattenAll [] = []
-flattenAll (ValNumber n : xs) = ScalarNumber n : flattenAll xs
-flattenAll (ValChar c : xs) = ScalarChar c : flattenAll xs
-flattenAll (ValList l : xs) = flattenAll l ++ flattenAll xs
+flattenAll (Scalar x : xs) = x : flattenAll xs
+flattenAll (List l : xs) = flattenAll l ++ flattenAll xs
 
 -- Take a Value and convert it to a list of Integers:
---  If it's a scalar, wrap it in a singleton list
+--  If it's a Scalar, wrap it in a singleton list
 --  Flatten the list
 --  Convert any characters in the result to their codepoints
 toIntegerList :: Value -> [Integer]

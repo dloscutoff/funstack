@@ -14,7 +14,7 @@ import Text.ParserCombinators.ReadPrec (
   choice
   )
 import qualified Text.ParserCombinators.ReadP as ReadP
-import Value (Value (..), toValue)
+import Value (Value (..), ScalarValue (..), toValue)
 import Command (Command (..))
 import qualified BuiltinFunction as BF
 import qualified BuiltinModifier as BM
@@ -170,12 +170,12 @@ specialValues = [
   ("#N1", toValue $ tail naturals),
   ("\\n", toValue '\n'),
   ("\\s", toValue ' '),
-  ("[]", ValList []),
+  ("[]", List []),
   ("$A", toValue ['A'..'Z']),
   ("$a", toValue ['a'..'z']),
   ("$0", toValue ['0'..'9']),
-  ("#-", ValNumber (-1)),
-  ("#t", ValNumber 10),
+  ("#-", Scalar $ ScalarNumber (-1)),
+  ("#t", Scalar $ ScalarNumber 10),
   ("#N", toValue naturals)
   ]
   where naturals = [0 :: Integer ..]

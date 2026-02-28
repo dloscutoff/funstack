@@ -166,7 +166,7 @@ inclRange x (ScalarChar c) = toValue [chr' n .. c]
 exclRange :: ScalarValue -> ScalarValue -> Value
 exclRange x (ScalarNumber y) = toValue [scalarToInteger x .. y-1]
 exclRange x (ScalarChar c)
-  | c == minBound = ValList []
+  | c == minBound = List []
   | otherwise = toValue [chr' n .. pred c]
   where n = max 0 (scalarToInteger x)
 
@@ -287,20 +287,20 @@ fromBase b ds = foldr (\d n -> n * b + d) 0 ds
 
 -- Base conversion function that takes an Integer and a list of Values
 -- and returns a Value
--- Flattens second argument and treats ValChars as their charcodes
+-- Flattens second argument and treats characters as their charcodes
 valsFromBase :: Integer -> [Value] -> Value
-valsFromBase b ds = ValNumber $ fromBase b $ map scalarToInteger $ flattenAll ds
+valsFromBase b ds = toValue $ fromBase b $ map scalarToInteger $ flattenAll ds
 
 -- Given a list of Values, prepend a falsey Value of the same type as the
 -- first element in the list
 -- If the list is empty, prepend 0
 consFalsey :: [Value] -> [Value]
-consFalsey [] = [ValNumber 0]
+consFalsey [] = [Scalar $ ScalarNumber 0]
 consFalsey (x : xs) = sameTypeFalsey x : x : xs
 
--- Given a string (ValList of ValChars), split on newlines; given a ValList,
+-- Given a string (List of ScalarChars), split on newlines; given a List,
 -- convert to strings and join on newlines
--- Any non-ValList Value is treated as a string
+-- Any non-List Value is treated as a string
 linesUnlines :: Value -> Value
 linesUnlines = linesUnlines' . fromValue
   where
@@ -339,7 +339,7 @@ implementation f = case f of
   ConsFalsey -> listMonad consFalsey
   Cycle -> listMonad cycle'
   Dec -> charMathMonad pred
-  Depth -> monadic $ ValNumber . depth
+  Depth -> monadic $ Scalar . ScalarNumber . depth
   Double -> numberMathMonad (* 2)
   Flatten -> fnFlatten
   FlattenAll -> listMonad flattenAll
@@ -352,11 +352,11 @@ implementation f = case f of
   IFrom1 -> monadic $ mapOverList $ inclRange (ScalarNumber 1)
   Id -> monadic id
   Inc -> charMathMonad succ
-  Indices -> listMonad (\l -> [ValNumber i | (i, _) <- zip [0..] l])
+  Indices -> listMonad (\l -> [Scalar $ ScalarNumber i | (i, _) <- zip [0..] l])
   Init -> listMonad init'
   Inits -> listMonad inits
   Last -> listMonad last
-  Length -> monadic (\l -> ValNumber $ genericLength $ listOrString l)
+  Length -> monadic (\l -> Scalar $ ScalarNumber $ genericLength $ listOrString l)
   Lines -> monadic linesUnlines
   Maximum -> listMonad $ maximum . map toValue . flattenAll
   Minimum -> listMonad $ minimum . map toValue . flattenAll
@@ -366,7 +366,7 @@ implementation f = case f of
   Nub -> listMonad nub
   Parity -> numberMathMonad (`mod` 2)
   Positive -> numberMathMonad $ boolToInteger . (> 0)
-  Product -> monadic $ ValNumber . product . toIntegerList
+  Product -> monadic $ Scalar . ScalarNumber . product . toIntegerList
   Read -> monadic $ read . valToString
   Reverse -> listMonad reverse
   Show -> monadic $ toValue . show
@@ -374,11 +374,11 @@ implementation f = case f of
   Sort -> listMonad sort
   Square -> numberMathMonad (\x -> x * x)
   Stringify -> fnStringify
-  Sum -> monadic $ ValNumber . sum . toIntegerList
+  Sum -> monadic $ Scalar . ScalarNumber . sum . toIntegerList
   Tail -> listMonad $ drop 1
   Tails -> listMonad tails
-  TruthyIndices -> listMonad (\l -> [ValNumber i | (i, x) <- zip [0..] l, fromValue x :: Bool])
-  UniformDepth -> monadic $ ValNumber . uniformDepth
+  TruthyIndices -> listMonad (\l -> [Scalar $ ScalarNumber i | (i, x) <- zip [0..] l, fromValue x :: Bool])
+  UniformDepth -> monadic $ Scalar . ScalarNumber . uniformDepth
   Wrap -> monadic (\x -> toValue [x])
   Zero -> numberMathMonad $ boolToInteger . (== 0)
   --- Arity 2 ---

@@ -176,9 +176,9 @@ convertArity a' f
   | a' == arity f = f
   | otherwise = collectArgs a' (applyFully f)
 
--- Modify a Function to generate an infinite ValList by repeated appliction
+-- Modify a Function to generate an infinite List by repeated appliction
 -- The new Function has the same arity (call it N) as the original Function
--- The resulting ValList begins with the arguments unchanged; thereafter, each
+-- The resulting List begins with the arguments unchanged; thereafter, each
 -- element is the result of applying the Function over the preceding N
 -- elements
 iterate' :: Function -> Function
@@ -242,27 +242,27 @@ parallelBind :: [Function] -> Value -> [Function]
 parallelBind fs x = [bind f x | f <- fs]
 
 -- Bind multiple Functions to an argument and return a list of new Functions
--- If the argument is a ValList, zip the Functions with the elements of the
+-- If the argument is a List, zip the Functions with the elements of the
 -- argument; otherwise, bind each Function to the argument
 zipBind :: [Function] -> Value -> [Function]
-zipBind fs (ValList l) = zipWith bind fs l
+zipBind fs (List l) = zipWith bind fs l
 zipBind fs x = parallelBind fs x
 
--- Apply multiple arity-1 Functions to an argument and return a ValList of
+-- Apply multiple arity-1 Functions to an argument and return a List of
 -- the results
 parallelApply :: [Function] -> Value -> Value
 parallelApply fs x = toValue [apply f x | f <- fs]
 
--- Apply multiple arity-1 Functions to an argument and return a ValList of
--- the results; if the argument is a ValList, zip the Functions with the
+-- Apply multiple arity-1 Functions to an argument and return a List of
+-- the results; if the argument is a List, zip the Functions with the
 -- elements of the argument; otherwise, apply each Function to the argument
 zipApply :: [Function] -> Value -> Value
-zipApply fs (ValList l) = toValue $ zipWith apply fs l
+zipApply fs (List l) = toValue $ zipWith apply fs l
 zipApply fs x = parallelApply fs x
 
 -- Given an arity and a list of Functions of that arity, turn them into a
 -- single Function that applies each of the constituent Functions in parallel
--- and returns a ValList of the results
+-- and returns a List of the results
 parallel :: Arity -> [Function] -> Function
 parallel a fs
   | a < 1 = error $ "Cannot call parallel with arity " ++ show a ++ " less than 1"
@@ -271,7 +271,7 @@ parallel a fs
 
 -- Given an arity and a list of Functions of that arity, turn them into a
 -- single Function that applies each of the constituent Functions in parallel
--- and returns a ValList of the results
+-- and returns a List of the results
 zipParallel :: Arity -> [Function] -> Function
 zipParallel a fs
   | a < 1 = error $ "Cannot call zipParallel with arity " ++ show a ++ " less than 1"
@@ -281,72 +281,72 @@ zipParallel a fs
 -- Convert a Function to map over its arguments
 -- If the Function takes multiple arguments, zip the argument lists
 -- together (truncating to the length of the shortest one)
--- However, if an argument is not a ValList, it is used across the board
--- If all arguments are non-ValLists, the result is a singleton ValList
+-- However, if an argument is not a List, it is used across the board
+-- If all arguments are non-Lists, the result is a singleton List
 mapZipping :: Function -> Function
 mapZipping f
   | arity f == 1 = listMonad $ map (apply f)
   | otherwise = Function (arity f) mapBind
   where
-    mapBind (ValList l) = zipParallel (arity f - 1) (map (bind f) l)
+    mapBind (List l) = zipParallel (arity f - 1) (map (bind f) l)
     mapBind x = mapZipping $ bind f x
 
 -- Convert a Function to map recursively over its list arguments (trees)
 -- and apply directly to its non-list arguments (leaves)
 -- If the Function takes multiple arguments, zip the argument lists
 -- together (truncating to the length of the shortest one)
--- However, if an argument is not a ValList, it is used across the board
+-- However, if an argument is not a List, it is used across the board
 treeMapZipping :: Function -> Function
 treeMapZipping f
   | arity f == 1 = monadic treeMapApply
   | otherwise = Function (arity f) treeMapBind
   where
-    treeMapBind (ValList l) = zipParallel (arity f - 1) (map (bind $ treeMapZipping f) l)
+    treeMapBind (List l) = zipParallel (arity f - 1) (map (bind $ treeMapZipping f) l)
     treeMapBind x = treeMapZipping $ bind f x
-    treeMapApply (ValList l) = toValue [apply (treeMapZipping f) x | x <- l]
+    treeMapApply (List l) = toValue [apply (treeMapZipping f) x | x <- l]
     treeMapApply x = apply f x
 
--- Convert a Function to apply recursively over a nested ValList, interpreted
+-- Convert a Function to apply recursively over a nested List, interpreted
 -- as a tree
--- Apply the Function to each level of the ValList after recursing
--- Leave non-ValLists (leaves) unchanged
+-- Apply the Function to each level of the List after recursing
+-- Leave non-Lists (leaves) unchanged
 treeApply :: Function -> Value -> Value
 treeApply f t
   | arity f > 1 = error "Function for treeapply must have arity 1"
-  | (ValList l) <- t = apply f $ toValue $ map (treeApply f) l
+  | (List l) <- t = apply f $ toValue $ map (treeApply f) l
   | leaf <- t = leaf
 
--- Convert three Functions to walk recursively over a nested ValList, interpreted
+-- Convert three Functions to walk recursively over a nested List, interpreted
 -- as a tree, applying the Functions:
---  - Apply the first Function to each level of the ValList before recursing
---  - Apply the second Function to non-ValLists (leaf nodes)
---  - Apply the third Function to each level of the ValList after recursing
+--  - Apply the first Function to each level of the List before recursing
+--  - Apply the second Function to non-Lists (leaf nodes)
+--  - Apply the third Function to each level of the List after recursing
 treeWalk :: Function -> Function -> Function -> Value -> Value
 treeWalk f g h t
   | maximum (map arity [f, g, h]) > 1 = error "Functions for treewalk must have arity 1"
-  | (ValList _) <- t = treeWalk' $ apply f t
+  | (List _) <- t = treeWalk' $ apply f t
   | otherwise = treeWalk' t
   where
-    treeWalk' (ValList l) = apply h $ toValue $ map (treeWalk f g h) l
+    treeWalk' (List l) = apply h $ toValue $ map (treeWalk f g h) l
     treeWalk' leaf = apply g leaf
 
 -- Convert a Function to generate a nested list, interpreted as a tree,
 -- by applying it to a seed Value:
---  - If the result is a ValList, recurse over the elements of the ValList
+--  - If the result is a List, recurse over the elements of the List
 --  - If not, return the result unchanged (leaf node)
 treeUnfold :: Function -> Value -> Value
 treeUnfold f t
   | arity f > 1 = error "Function for treeunfold must have arity 1"
   | otherwise =
     case (apply f t) of
-      (ValList l) -> toValue $ map (treeUnfold f) l
+      (List l) -> toValue $ map (treeUnfold f) l
       leaf -> leaf
 
 -- Convert a Function to map over its first argument
 -- If the Function only takes one argument, apply it to each element of its
--- argument, pair the result with the original element, and return a ValList
+-- argument, pair the result with the original element, and return a List
 -- of those pairs
--- If the first argument is not a ValList, wrap it in a singleton ValList
+-- If the first argument is not a List, wrap it in a singleton List
 mapLeft :: Function -> Function
 mapLeft f
   | a == 1 = listMonad $ map (\x -> [apply f x, x])
@@ -357,8 +357,8 @@ mapLeft f
 -- Convert a Function to map over its last argument
 -- If the Function only takes one argument, pair each element of its original
 -- argument with the result of applying the function to that element, and 
--- return a ValList of those pairs
--- If the first argument is not a ValList, wrap it in a singleton ValList
+-- return a List of those pairs
+-- If the first argument is not a List, wrap it in a singleton List
 mapRight :: Function -> Function
 mapRight f
   | a == 1 = listMonad $ map (\x -> [x, apply f x])
@@ -366,12 +366,12 @@ mapRight f
   | otherwise = Function a (\x -> mapRight $ bind f x)
   where a = arity f
 
--- Convert an arity-N Function to map over size-N windows from a ValList
+-- Convert an arity-N Function to map over size-N windows from a List
 mapWindows :: Function -> Function
 mapWindows f = listMonad (map (applyFully f) . windows (arity f))
 
 -- Convert an arity-N Function to a Function that creates a depth-N nested
--- ValList containing the results of applying the original Function to every
+-- List containing the results of applying the original Function to every
 -- combination of values from its arguments (N-dimensional outer product)
 table :: Function -> Function
 table f
