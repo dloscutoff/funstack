@@ -51,7 +51,7 @@ instance Num Number where
 
 instance Fractional Number where
   (a :% b) / (c :% d) = reduce (a * d) (b * c)
-  recip (a :% b) = b :% a
+  recip (a :% b) = reduce b a
   fromRational r = (Ratio.numerator r) :% (Ratio.denominator r)
 
 instance Ord Number where
