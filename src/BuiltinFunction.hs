@@ -24,7 +24,7 @@ import Data.List (
   genericIndex,
   genericReplicate
   )
-import Number (Number, toNumber)
+import Number (Number, numerator, denominator, toNumber)
 import Value (
   Value (..),
   ScalarValue (..),
@@ -76,10 +76,13 @@ data BuiltinFunction =
   Const |
   Cycle |
   Dec |
+  Denominator |
   Depth |
+  Div |
   Double |
   Drop |
   Equal |
+  Even |
   Flatten |
   FlattenAll |
   From0 |
@@ -117,6 +120,8 @@ data BuiltinFunction =
   NotEqual |
   NotSame |
   Nub |
+  Numerator |
+  Odd |
   Pair |
   Parity |
   Partition |
@@ -127,6 +132,7 @@ data BuiltinFunction =
   Quartet |
   Range |
   Read |
+  Recip |
   Repeat |
   Reverse |
   Rotate |
@@ -340,8 +346,10 @@ implementation f = case f of
   ConsFalsey -> listMonad consFalsey
   Cycle -> listMonad cycle'
   Dec -> charMathMonad pred
+  Denominator -> numberMathMonad $ fromInteger . denominator
   Depth -> monadic $ Scalar . ScalarNumber . depth
   Double -> numberMathMonad (* 2)
+  Even -> numberMathMonad $ boolToNumber . even
   Flatten -> fnFlatten
   FlattenAll -> listMonad flattenAll
   From0 -> monadic $ mapOverList $ exclRange (ScalarNumber 0)
@@ -356,6 +364,7 @@ implementation f = case f of
   Indices -> listMonad (\l -> [Scalar $ ScalarNumber i | (i, _) <- zip [0..] l])
   Init -> listMonad init'
   Inits -> listMonad inits
+  Recip -> numberMathMonad recip
   Last -> listMonad last
   Length -> monadic (\l -> Scalar $ ScalarNumber $ genericLength $ listOrString l)
   Lines -> monadic linesUnlines
@@ -365,6 +374,8 @@ implementation f = case f of
   Negative -> numberMathMonad $ boolToNumber . (< 0)
   Not -> fnNot
   Nub -> listMonad nub
+  Numerator -> numberMathMonad $ fromInteger . numerator
+  Odd -> numberMathMonad $ boolToNumber . odd
   Parity -> numberMathMonad (`mod` 2)
   Positive -> numberMathMonad $ boolToNumber . (> 0)
   Product -> monadic $ Scalar . ScalarNumber . product . toNumberList
@@ -391,6 +402,7 @@ implementation f = case f of
   Cons -> dyadic (\x y -> toValue $ x : fromValue y)
   Consr -> dyadic (\x y -> toValue $ fromValue y ++ [x])
   Const -> dyadic const
+  Div -> numberMathDyad $ flip (/)
   Drop -> numAndListDyad $ (toValue .) . drop'
   Equal -> numberMathDyad $ (boolToNumber .) . (==)
   FromBase -> numAndListDyad valsFromBase

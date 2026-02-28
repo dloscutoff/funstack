@@ -9,7 +9,7 @@ and this project adheres to the
 ## Unreleased
 
 ### Added
-- Builtins: Group
+- Builtins: Denominator, Div, Even, Group, Numerator, Odd, Recip
 - Modifiers: arity2, arity3, filter, treeunfold
 - Stack operations: !dup2, !swap2
 - Rational number support
